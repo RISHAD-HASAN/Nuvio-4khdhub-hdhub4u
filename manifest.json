@@ -1,12 +1,12 @@
 {
   "name": "Nuvio Dual Providers",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "scrapers": [
     {
       "id": "4khdhub",
       "name": "4KHDHub",
       "description": "4KHDHub streams with release tags, codecs and separate quality choices",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",
@@ -27,7 +27,7 @@
       "id": "hdhub4u",
       "name": "HDHub4u",
       "description": "HDHub4u streams with release tags, codecs and separate quality choices",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",

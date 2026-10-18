@@ -91,7 +91,7 @@ test('direct media does not get downloaded as an HTML page', async () => {
 });
 test('HDHub4u native search fallback when primary fails', async () => {
   const c = load('hdhub4u', async url => {
-    if (url.includes('search.hdhub4u')) return response('',404);
+    if (url.includes('/collections/post/documents/search')) return response('',404);
     if (url.includes('domains.json')) return response({ HDHUB4u: 'https://hdhub4u.example' });
     return response('<article><h2><a href="/example-2026/">Example (2026)</a></h2></article>');
   });

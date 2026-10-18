@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.2
+
+- Removed reliance on Cheerio `closest()`, which Nuvio’s lightweight parser doesn’t provide.
+- Passed each release’s heading down to its episode links instead of looking up parents.
+- Made timers optional and handled buffered response bodies and plain header objects.
+- Added a small HTTP URL helper for runtimes with missing or partial URL support.
+- Read HDHub4u’s current search endpoint from its public search-page config.
+- Compared clean titles instead of rejecting matches because of long release descriptions.
+- Stopped treating resolution numbers as release years.
+- Limited episode extraction to the requested episode and fixed native-wrapper separator handling.
+- Added restricted-runtime regression tests; 77 tests now pass.
+
 ## 2.0.1
 
 - Shortened the documentation and made setup instructions easier to follow.

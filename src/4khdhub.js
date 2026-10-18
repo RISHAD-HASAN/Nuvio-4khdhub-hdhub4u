@@ -77,7 +77,7 @@ function fetchText(_0) {
         console.log(`[4KHDHub] Request failed for ${url}: ${err.message}${i < retries ? `, retrying (${i + 1}/${retries})...` : ""}`);
       }
       if (i < retries) {
-        yield new Promise((r) => setTimeout(r, delay * Math.pow(2, i)));
+        yield providerDelay(delay * Math.pow(2, i));
       }
     }
     return null;
@@ -284,16 +284,30 @@ function detectVideoCodec(text) {
   if (/\b(?:h[.\s-]?264|x264|avc)\b/i.test(value)) return "H.264";
   return null;
 }
-function extractReleaseMeta($, el) {
+function extractReleaseMeta($, el, context) {
   const item = $(el);
   const title = item.find(".file-title, .episode-file-title").text().trim();
-  // Only inherit the nearest release heading, never the season/page tags or
-  // all the descendant text (which could include other releases/episodes).
-  const release = item.closest(".episode-item");
-  const heading = release.children(".episode-header").find(".episode-title").first().text().trim() || item.find(".download-header").first().text().trim();
-  const localText = item.text();
+  let heading = context && context.title || "";
+  let languages = context && context.languages || "";
+  // Nuvio's parser has no closest(). The main extraction loop passes the
+  // release heading down while it already has the parent in hand.
+  if (!context) {
+    $(".episode-item").each((_, release) => {
+      let found = false;
+      $(release).find(".episode-download-item").each((_, candidate) => {
+        // DOM identity in Cheerio; wrapper IDs in Nuvio's native parser.
+        if (candidate === el || (candidate._elementIds && el._elementIds &&
+            candidate._elementIds.join(",") === el._elementIds.join(","))) found = true;
+      });
+      if (found) {
+        heading = $(release).find(".episode-title").first().text().trim();
+        languages = $(release).find(".episode-meta").first().text();
+      }
+    });
+  }
+  heading = heading || item.find(".download-header").first().text().trim();
   const resolution = (title + " " + heading).match(/\b(\d{3,4})p\b/i);
-  const size = localText.match(/([\d.]+ ?[GM]B)/i);
+  const size = item.text().match(/([\d.]+ ?[GM]B)/i);
   return {
     title: title || heading,
     releaseTitle: heading,
@@ -301,7 +315,7 @@ function extractReleaseMeta($, el) {
     height: resolution ? parseInt(resolution[1]) : /\b4k\b/i.test(title + " " + heading) ? 2160 : 0,
     bytes: size ? parseBytes(size[1]) : 0,
     dynamicRange: detectDynamicRange(title) || detectDynamicRange(heading),
-    details: providerDetails(title + " " + heading, release.children(".episode-header").find(".episode-meta").text() || item.find(".download-header").text()),
+    details: providerDetails(title + " " + heading, languages || item.find(".download-header").text()),
     codec: detectVideoCodec(title) || detectVideoCodec(heading)
   };
 }
@@ -321,9 +335,9 @@ function streamFromLink(link, sourceMeta) {
     behaviorHints: { bingeGroup: `4khdhub-${range || "untagged"}-${codec || "untagged"}-${height || 0}-${link.source}` }
   };
 }
-function extractSourceResults($, el) {
+function extractSourceResults($, el, context) {
   return __async(this, null, function* () {
-    const meta = extractReleaseMeta($, el);
+    const meta = extractReleaseMeta($, el, context);
     const hblinksLink = $(el).find("a").filter((_, a) => {
       const href = $(a).attr("href") || "";
       return href.includes("hblinks") || href.includes("hubstream.dad");
@@ -501,19 +515,22 @@ function getStreams(tmdbId, type, season, episode) {
         if ($(".episode-title", el).text().includes(seasonStr)) {
           const downloadItems = $(".episode-download-item", el).filter((_2, item) => $(item).text().includes(episodeStr));
           downloadItems.each((_2, item) => {
-            itemsToProcess.push(item);
+            itemsToProcess.push({ item, context: {
+              title: $(el).find(".episode-title").first().text().trim(),
+              languages: $(el).find(".episode-meta").first().text()
+            } });
           });
         }
       });
     } else {
       $(".download-item").each((_, el) => {
-        itemsToProcess.push(el);
+        itemsToProcess.push({ item: el, context: {} });
       });
     }
     console.log(`[4KHDHub] Processing ${itemsToProcess.length} items`);
-    const streamPromises = itemsToProcess.map((item) => __async(this, null, function* () {
+    const streamPromises = itemsToProcess.map((entry) => __async(this, null, function* () {
       try {
-        const sourceResult = yield extractSourceResults($, item);
+        const sourceResult = yield extractSourceResults($, entry.item, entry.context);
         if (sourceResult && sourceResult.url) {
           console.log(`[4KHDHub] Extracting from ${sourceResult.extractor === "hblinks" ? "Hblinks" : "HubCloud"}: ${sourceResult.url}`);
           let extractedLinks;

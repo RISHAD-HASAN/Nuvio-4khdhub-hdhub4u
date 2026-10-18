@@ -1,13 +1,78 @@
-// Nuvio Dual Providers 2.0.1. Edit src/ and run npm run build. See NOTICE.md.
+// Nuvio Dual Providers 2.0.2. Edit src/ and run npm run build. See NOTICE.md.
+// Only the HTTP URL features these providers need. Some Nuvio runtimes don't
+// expose URL; others provide a partial version whose hostname isn't writable.
+function ProviderURL(value, base) {
+  let input = String(value || '').trim().replace(/ /g, '%20');
+  const baseUrl = base ? new ProviderURL(String(base)) : null;
+  if (/^\/\//.test(input)) {
+    if (!baseUrl) throw new Error('A protocol-relative URL needs a base');
+    input = baseUrl.protocol + input;
+  } else if (!/^[a-z][a-z0-9+.-]*:/i.test(input)) {
+    if (!baseUrl) throw new Error('A relative URL needs a base');
+    if (!input) input = baseUrl.toString();
+    else if (input.charAt(0) === '#') input = baseUrl.origin + baseUrl.pathname + baseUrl.search + input;
+    else if (input.charAt(0) === '?') input = baseUrl.origin + baseUrl.pathname + input;
+    else if (input.charAt(0) === '/') input = baseUrl.origin + input;
+    else input = baseUrl.origin + baseUrl.pathname.replace(/[^/]*$/, '') + input;
+  }
+  const match = input.match(/^(https?):\/\/([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/i);
+  if (!match || /[@\s\\]/.test(match[2])) throw new Error('Invalid HTTP URL');
+  const authority = match[2].match(/^(\[[0-9a-f:.]+\]|[^:\[\]]+)(?::(\d+))?$/i);
+  if (!authority) throw new Error('Invalid HTTP host');
+  this.protocol = match[1].toLowerCase() + ':';
+  this.hostname = authority[1].toLowerCase();
+  this.port = authority[2] || '';
+  this.username = '';
+  this.password = '';
+  const path = [];
+  const segments = (match[3] || '/').split('/');
+  for (let i = 0; i < segments.length; i++) {
+    const part = segments[i];
+    if (part === '.') {
+      if (i === segments.length - 1) path.push('');
+    } else if (part === '..') {
+      if (path.length > 1) path.pop();
+      if (i === segments.length - 1) path.push('');
+    } else path.push(part);
+  }
+  this.pathname = path.join('/') || '/';
+  this.search = match[4] || '';
+  this.hash = match[5] || '';
+}
+Object.defineProperty(ProviderURL.prototype, 'host', {
+  get: function() { return this.hostname + (this.port ? ':' + this.port : ''); }
+});
+Object.defineProperty(ProviderURL.prototype, 'origin', {
+  get: function() { return this.protocol + '//' + this.host; }
+});
+ProviderURL.prototype.toString = function() {
+  return this.origin + this.pathname + this.search + this.hash;
+};
+
 // Shared helpers. The build copies these into each provider so Nuvio
 // can load a single file without importing local modules.
+function providerDelay(ms) {
+  // The native host handles request deadlines when timers aren't available.
+  return typeof setTimeout === 'function' ? new Promise(resolve => setTimeout(resolve, ms)) : Promise.resolve();
+}
+function providerClearTimer(timer) {
+  if (timer !== undefined && typeof clearTimeout === 'function') clearTimeout(timer);
+}
+function providerHeaders(headers) {
+  return { get: function(name) {
+    if (!headers) return null;
+    if (typeof headers.get === 'function') return headers.get(name);
+    const key = Object.keys(headers).find(k => k.toLowerCase() === name.toLowerCase());
+    return key === undefined ? null : headers[key];
+  } };
+}
 var providerActive = 0;
 var providerQueue = [];
 var providerInflight = Object.create(null);
 function providerHttpUrl(value, base) {
   if (typeof value !== "string" || !value.trim()) return null;
   try {
-    const u = base ? new URL(value, base) : new URL(value);
+    const u = base ? new ProviderURL(value, base) : new ProviderURL(value);
     return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.toString() : null;
   } catch (_) { return null; }
 }
@@ -33,24 +98,24 @@ function providerFetch(url, options) {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const requestOptions = Object.assign({}, opts);
       if (controller && !requestOptions.signal) requestOptions.signal = controller.signal;
-      const timeout = new Promise((_, reject) => {
+      const timeout = typeof setTimeout === 'function' ? new Promise((_, reject) => {
         timer = setTimeout(() => {
           if (controller) controller.abort();
           reject(new Error('Provider request timed out'));
         }, 15000);
-      });
+      }) : null;
       // Read the body within the same timeout, in case the server stalls
       // after sending its headers.
       const request = Promise.resolve().then(() => fetch(url, requestOptions)).then(res =>
-        res.text().then(body => ({
+        Promise.resolve().then(() => res.text()).then(body => ({
           ok: res.ok, status: res.status, statusText: res.statusText,
-          headers: res.headers, url: res.url,
+          headers: providerHeaders(res.headers), url: res.url,
           text: () => Promise.resolve(body),
           json: () => Promise.resolve().then(() => JSON.parse(body))
         }))
       );
-      return Promise.race([request, timeout]).then(res => {
-        clearTimeout(timer);
+      return (timeout ? Promise.race([request, timeout]) : request).then(res => {
+        providerClearTimer(timer);
         // Preserve manual redirects used by host extractors.
         if (res.ok === false && !(opts.redirect === 'manual' && res.status >= 300 && res.status < 400)) {
           const error = new Error('HTTP ' + res.status);
@@ -58,12 +123,12 @@ function providerFetch(url, options) {
           throw error;
         }
         return res;
-      }, err => { clearTimeout(timer); throw err; });
+      }, err => { providerClearTimer(timer); throw err; });
     }).catch(err => {
       const canRetry = (!opts.method || opts.method.toUpperCase() === 'GET') &&
         err.retryable !== false && count < 1;
       if (!canRetry) throw err;
-      return new Promise(r => setTimeout(r, 350)).then(() => attempt(count + 1));
+      return providerDelay(350).then(() => attempt(count + 1));
     });
   }
   return attempt(0);
@@ -203,7 +268,7 @@ function fetchText(_0) {
         console.log(`[4KHDHub] Request failed for ${url}: ${err.message}${i < retries ? `, retrying (${i + 1}/${retries})...` : ""}`);
       }
       if (i < retries) {
-        yield new Promise((r) => setTimeout(r, delay * Math.pow(2, i)));
+        yield providerDelay(delay * Math.pow(2, i));
       }
     }
     return null;
@@ -410,16 +475,30 @@ function detectVideoCodec(text) {
   if (/\b(?:h[.\s-]?264|x264|avc)\b/i.test(value)) return "H.264";
   return null;
 }
-function extractReleaseMeta($, el) {
+function extractReleaseMeta($, el, context) {
   const item = $(el);
   const title = item.find(".file-title, .episode-file-title").text().trim();
-  // Only inherit the nearest release heading, never the season/page tags or
-  // all the descendant text (which could include other releases/episodes).
-  const release = item.closest(".episode-item");
-  const heading = release.children(".episode-header").find(".episode-title").first().text().trim() || item.find(".download-header").first().text().trim();
-  const localText = item.text();
+  let heading = context && context.title || "";
+  let languages = context && context.languages || "";
+  // Nuvio's parser has no closest(). The main extraction loop passes the
+  // release heading down while it already has the parent in hand.
+  if (!context) {
+    $(".episode-item").each((_, release) => {
+      let found = false;
+      $(release).find(".episode-download-item").each((_, candidate) => {
+        // DOM identity in Cheerio; wrapper IDs in Nuvio's native parser.
+        if (candidate === el || (candidate._elementIds && el._elementIds &&
+            candidate._elementIds.join(",") === el._elementIds.join(","))) found = true;
+      });
+      if (found) {
+        heading = $(release).find(".episode-title").first().text().trim();
+        languages = $(release).find(".episode-meta").first().text();
+      }
+    });
+  }
+  heading = heading || item.find(".download-header").first().text().trim();
   const resolution = (title + " " + heading).match(/\b(\d{3,4})p\b/i);
-  const size = localText.match(/([\d.]+ ?[GM]B)/i);
+  const size = item.text().match(/([\d.]+ ?[GM]B)/i);
   return {
     title: title || heading,
     releaseTitle: heading,
@@ -427,7 +506,7 @@ function extractReleaseMeta($, el) {
     height: resolution ? parseInt(resolution[1]) : /\b4k\b/i.test(title + " " + heading) ? 2160 : 0,
     bytes: size ? parseBytes(size[1]) : 0,
     dynamicRange: detectDynamicRange(title) || detectDynamicRange(heading),
-    details: providerDetails(title + " " + heading, release.children(".episode-header").find(".episode-meta").text() || item.find(".download-header").text()),
+    details: providerDetails(title + " " + heading, languages || item.find(".download-header").text()),
     codec: detectVideoCodec(title) || detectVideoCodec(heading)
   };
 }
@@ -447,15 +526,15 @@ function streamFromLink(link, sourceMeta) {
     behaviorHints: { bingeGroup: `4khdhub-${range || "untagged"}-${codec || "untagged"}-${height || 0}-${link.source}` }
   };
 }
-function extractSourceResults($, el) {
+function extractSourceResults($, el, context) {
   return __async(this, null, function* () {
-    const meta = extractReleaseMeta($, el);
+    const meta = extractReleaseMeta($, el, context);
     const hblinksLink = $(el).find("a").filter((_, a) => {
       const href = $(a).attr("href") || "";
       return href.includes("hblinks") || href.includes("hubstream.dad");
     }).attr("href");
     if (hblinksLink) {
-      return { url: new URL(hblinksLink, BASE_URL).toString(), meta, extractor: "hblinks" };
+      return { url: new ProviderURL(hblinksLink, BASE_URL).toString(), meta, extractor: "hblinks" };
     }
     const hubCloudLink = $(el).find("a").filter((_, a) => {
       const text = $(a).text();
@@ -563,10 +642,10 @@ function extractHblinks(hblinksUrl, baseMeta, depth = 0) {
       const results = [];
       for (const rawLink of links) {
         try {
-          const absoluteLink = new URL(rawLink, hblinksUrl).toString();
+          const absoluteLink = new ProviderURL(rawLink, hblinksUrl).toString();
           const resolvedLink = yield resolveRedirectUrl(absoluteLink);
           const link = resolvedLink || absoluteLink;
-          const hostname = new URL(link).hostname.toLowerCase();
+          const hostname = new ProviderURL(link).hostname.toLowerCase();
           if (hostname.includes("hblinks") || hostname.includes("hubstream.dad")) {
             const nestedResults = yield extractHblinks(link, baseMeta, depth + 1);
             results.push(...nestedResults);
@@ -583,7 +662,7 @@ function extractHblinks(hblinksUrl, baseMeta, depth = 0) {
                 return text.includes("HubCloud") || href.includes("hubcloud.") || href.includes("hubcloud/");
               }).attr("href");
               if (cloudLink) {
-                const absoluteCloudLink = new URL(cloudLink, link).toString();
+                const absoluteCloudLink = new ProviderURL(cloudLink, link).toString();
                 const cloudResults = yield extractHubCloud(absoluteCloudLink, baseMeta);
                 results.push(...cloudResults);
               }
@@ -627,19 +706,22 @@ function getStreams(tmdbId, type, season, episode) {
         if ($(".episode-title", el).text().includes(seasonStr)) {
           const downloadItems = $(".episode-download-item", el).filter((_2, item) => $(item).text().includes(episodeStr));
           downloadItems.each((_2, item) => {
-            itemsToProcess.push(item);
+            itemsToProcess.push({ item, context: {
+              title: $(el).find(".episode-title").first().text().trim(),
+              languages: $(el).find(".episode-meta").first().text()
+            } });
           });
         }
       });
     } else {
       $(".download-item").each((_, el) => {
-        itemsToProcess.push(el);
+        itemsToProcess.push({ item: el, context: {} });
       });
     }
     console.log(`[4KHDHub] Processing ${itemsToProcess.length} items`);
-    const streamPromises = itemsToProcess.map((item) => __async(this, null, function* () {
+    const streamPromises = itemsToProcess.map((entry) => __async(this, null, function* () {
       try {
-        const sourceResult = yield extractSourceResults($, item);
+        const sourceResult = yield extractSourceResults($, entry.item, entry.context);
         if (sourceResult && sourceResult.url) {
           console.log(`[4KHDHub] Extracting from ${sourceResult.extractor === "hblinks" ? "Hblinks" : "HubCloud"}: ${sourceResult.url}`);
           let extractedLinks;

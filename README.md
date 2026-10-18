@@ -53,11 +53,11 @@ The providers still use the host extractors from the original project. Keeping a
 
 ## Testing and known limits
 
-**64 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
+**77 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
 
-Read-only checks on October 18, 2026 also loaded the East of Eden page, found all seven release groups and reached the HDHub4u homepage. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links.
+A live extraction check on October 18, 2026 returned 15 entries from 4KHDHub and 6 from HDHub4u for East of Eden S1 E2. It used a lightweight parser adapter with no browser URL constructor or timers. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links. See [the compatibility fix](docs/FIX-2.0.2.md).
 
-The labels describe what the source says; they aren’t the result of inspecting the video itself. The request timeout applies to each request, not the whole search. In runtimes without `AbortController`, a timed-out fetch may continue in the background.
+The labels describe what the source says; they aren’t the result of inspecting the video itself. When timers are available, the timeout applies to each request, not the whole search. Without timers, requests rely on the app’s native deadline. Without `AbortController`, a timed-out fetch may continue in the background.
 
 The legacy development parser has known dependency advisories. See [Security notes](SECURITY.md). Before making a public derivative, also read the [source and licensing notice](NOTICE.md): the original repository didn’t declare a license when checked.
 

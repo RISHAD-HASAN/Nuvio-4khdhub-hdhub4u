@@ -1,13 +1,78 @@
-// Nuvio Dual Providers 2.0.1. Edit src/ and run npm run build. See NOTICE.md.
+// Nuvio Dual Providers 2.0.2. Edit src/ and run npm run build. See NOTICE.md.
+// Only the HTTP URL features these providers need. Some Nuvio runtimes don't
+// expose URL; others provide a partial version whose hostname isn't writable.
+function ProviderURL(value, base) {
+  let input = String(value || '').trim().replace(/ /g, '%20');
+  const baseUrl = base ? new ProviderURL(String(base)) : null;
+  if (/^\/\//.test(input)) {
+    if (!baseUrl) throw new Error('A protocol-relative URL needs a base');
+    input = baseUrl.protocol + input;
+  } else if (!/^[a-z][a-z0-9+.-]*:/i.test(input)) {
+    if (!baseUrl) throw new Error('A relative URL needs a base');
+    if (!input) input = baseUrl.toString();
+    else if (input.charAt(0) === '#') input = baseUrl.origin + baseUrl.pathname + baseUrl.search + input;
+    else if (input.charAt(0) === '?') input = baseUrl.origin + baseUrl.pathname + input;
+    else if (input.charAt(0) === '/') input = baseUrl.origin + input;
+    else input = baseUrl.origin + baseUrl.pathname.replace(/[^/]*$/, '') + input;
+  }
+  const match = input.match(/^(https?):\/\/([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/i);
+  if (!match || /[@\s\\]/.test(match[2])) throw new Error('Invalid HTTP URL');
+  const authority = match[2].match(/^(\[[0-9a-f:.]+\]|[^:\[\]]+)(?::(\d+))?$/i);
+  if (!authority) throw new Error('Invalid HTTP host');
+  this.protocol = match[1].toLowerCase() + ':';
+  this.hostname = authority[1].toLowerCase();
+  this.port = authority[2] || '';
+  this.username = '';
+  this.password = '';
+  const path = [];
+  const segments = (match[3] || '/').split('/');
+  for (let i = 0; i < segments.length; i++) {
+    const part = segments[i];
+    if (part === '.') {
+      if (i === segments.length - 1) path.push('');
+    } else if (part === '..') {
+      if (path.length > 1) path.pop();
+      if (i === segments.length - 1) path.push('');
+    } else path.push(part);
+  }
+  this.pathname = path.join('/') || '/';
+  this.search = match[4] || '';
+  this.hash = match[5] || '';
+}
+Object.defineProperty(ProviderURL.prototype, 'host', {
+  get: function() { return this.hostname + (this.port ? ':' + this.port : ''); }
+});
+Object.defineProperty(ProviderURL.prototype, 'origin', {
+  get: function() { return this.protocol + '//' + this.host; }
+});
+ProviderURL.prototype.toString = function() {
+  return this.origin + this.pathname + this.search + this.hash;
+};
+
 // Shared helpers. The build copies these into each provider so Nuvio
 // can load a single file without importing local modules.
+function providerDelay(ms) {
+  // The native host handles request deadlines when timers aren't available.
+  return typeof setTimeout === 'function' ? new Promise(resolve => setTimeout(resolve, ms)) : Promise.resolve();
+}
+function providerClearTimer(timer) {
+  if (timer !== undefined && typeof clearTimeout === 'function') clearTimeout(timer);
+}
+function providerHeaders(headers) {
+  return { get: function(name) {
+    if (!headers) return null;
+    if (typeof headers.get === 'function') return headers.get(name);
+    const key = Object.keys(headers).find(k => k.toLowerCase() === name.toLowerCase());
+    return key === undefined ? null : headers[key];
+  } };
+}
 var providerActive = 0;
 var providerQueue = [];
 var providerInflight = Object.create(null);
 function providerHttpUrl(value, base) {
   if (typeof value !== "string" || !value.trim()) return null;
   try {
-    const u = base ? new URL(value, base) : new URL(value);
+    const u = base ? new ProviderURL(value, base) : new ProviderURL(value);
     return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.toString() : null;
   } catch (_) { return null; }
 }
@@ -33,24 +98,24 @@ function providerFetch(url, options) {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const requestOptions = Object.assign({}, opts);
       if (controller && !requestOptions.signal) requestOptions.signal = controller.signal;
-      const timeout = new Promise((_, reject) => {
+      const timeout = typeof setTimeout === 'function' ? new Promise((_, reject) => {
         timer = setTimeout(() => {
           if (controller) controller.abort();
           reject(new Error('Provider request timed out'));
         }, 15000);
-      });
+      }) : null;
       // Read the body within the same timeout, in case the server stalls
       // after sending its headers.
       const request = Promise.resolve().then(() => fetch(url, requestOptions)).then(res =>
-        res.text().then(body => ({
+        Promise.resolve().then(() => res.text()).then(body => ({
           ok: res.ok, status: res.status, statusText: res.statusText,
-          headers: res.headers, url: res.url,
+          headers: providerHeaders(res.headers), url: res.url,
           text: () => Promise.resolve(body),
           json: () => Promise.resolve().then(() => JSON.parse(body))
         }))
       );
-      return Promise.race([request, timeout]).then(res => {
-        clearTimeout(timer);
+      return (timeout ? Promise.race([request, timeout]) : request).then(res => {
+        providerClearTimer(timer);
         // Preserve manual redirects used by host extractors.
         if (res.ok === false && !(opts.redirect === 'manual' && res.status >= 300 && res.status < 400)) {
           const error = new Error('HTTP ' + res.status);
@@ -58,12 +123,12 @@ function providerFetch(url, options) {
           throw error;
         }
         return res;
-      }, err => { clearTimeout(timer); throw err; });
+      }, err => { providerClearTimer(timer); throw err; });
     }).catch(err => {
       const canRetry = (!opts.method || opts.method.toUpperCase() === 'GET') &&
         err.retryable !== false && count < 1;
       if (!canRetry) throw err;
-      return new Promise(r => setTimeout(r, 350)).then(() => attempt(count + 1));
+      return providerDelay(350).then(() => attempt(count + 1));
     });
   }
   return attempt(0);
@@ -369,6 +434,16 @@ function calculateTitleSimilarity(title1, title2) {
   }
   return score;
 }
+function mediaTitleForMatch(value) {
+  // Search titles often append a full release description. Compare the show
+  // name, not codec/audio/language labels, while checking season separately.
+  return String(value || "").split("|")[0]
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\b(?:season\s*\d+|s\d{1,2})\b/gi, " ")
+    .replace(/\((?:19|20)\d{2}\)/g, " ")
+    .replace(/\b(?:WEB[. -]?DL|WEB[. -]?RIP|BLU[. -]?RAY|\d{3,4}p)\b[\s\S]*$/i, " ")
+    .replace(/\(\s*\)/g, " ").trim();
+}
 function findBestTitleMatch(mediaInfo, searchResults, mediaType, season) {
   if (!searchResults || searchResults.length === 0)
     return null;
@@ -378,7 +453,7 @@ function findBestTitleMatch(mediaInfo, searchResults, mediaType, season) {
     if (mediaType === "movie" && mediaInfo.year && result.year && Math.abs(mediaInfo.year - result.year) > 1) continue;
     const explicitSeason = result.title.match(/\bseason\s*(\d+)\b|\bs(\d+)\b/i);
     if (mediaType === "tv" && season && explicitSeason && Number(explicitSeason[1] || explicitSeason[2]) !== Number(season)) continue;
-    let score = calculateTitleSimilarity(mediaInfo.title, result.title);
+    let score = calculateTitleSimilarity(mediaInfo.title, mediaTitleForMatch(result.title));
     if (mediaInfo.year && result.year) {
       const yearDiff = Math.abs(mediaInfo.year - result.year);
       if (yearDiff === 0)
@@ -493,7 +568,7 @@ function vidStackExtractor(url) {
     var _a, _b, _c;
     try {
       const hash = url.split("#").pop().split("/").pop();
-      const baseUrl = new URL(url).origin;
+      const baseUrl = new ProviderURL(url).origin;
       const apiUrl = `${baseUrl}/api/v1/video?id=${hash}`;
       const response = yield providerFetch(apiUrl, { headers: __spreadProps(__spreadValues({}, HEADERS), { Referer: url }) });
       const encoded = (yield response.text()).trim();
@@ -568,7 +643,7 @@ function pixelDrainExtractor(link) {
   return __async(this, null, function* () {
     var _a;
     try {
-      const urlObj = new URL(link);
+      const urlObj = new ProviderURL(link);
       const baseUrl = `${urlObj.protocol}//${urlObj.hostname}`;
       const fileId = ((_a = link.match(/(?:file|u)\/([A-Za-z0-9]+)/)) == null ? void 0 : _a[1]) || link.split("/").pop();
       if (!fileId)
@@ -584,7 +659,7 @@ function streamTapeExtractor(link) {
   return __async(this, null, function* () {
     var _a, _b, _c, _d;
     try {
-      const url = new URL(link);
+      const url = new ProviderURL(link);
       url.hostname = "streamtape.com";
       const res = yield providerFetch(url.toString(), { headers: HEADERS });
       const data = yield res.text();
@@ -619,7 +694,7 @@ function hubCloudExtractor(url, referer, depth = 0) {
         }
         if (nextHref) {
           if (!nextHref.startsWith("http")) {
-            const urlObj = new URL(currentUrl);
+            const urlObj = new ProviderURL(currentUrl);
             nextHref = `${urlObj.protocol}//${urlObj.hostname}/${nextHref.replace(/^\//, "")}`;
           }
           finalUrl = nextHref;
@@ -762,7 +837,7 @@ function loadExtractor(_0) {
     try {
       if (depth > 8 || !providerHttpUrl(url)) return [];
       if (/\.(?:m3u8|mpd|mp4|mkv)(?:$|[?#])/i.test(url)) return [{ source: "Direct", quality: providerResolution(url), url }];
-      const hostname = new URL(url).hostname;
+      const hostname = new ProviderURL(url).hostname;
       const isRedirect = url.includes("?id=") || hostname.includes("techyboy4u") || hostname.includes("gadgetsweb.xyz") || hostname.includes("cryptoinsights.site") || hostname.includes("bloggingvector") || hostname.includes("ampproject.org");
       if (isRedirect) {
         const finalLink = yield getRedirectLinks(url);
@@ -799,10 +874,29 @@ function loadExtractor(_0) {
 }
 
 // src/hdhub4u/index.js
+var searchEndpointCache = { url: "https://search.pingora.fyi/collections/post/documents/search", ts: 0 };
+function getSearchEndpoint() {
+  return __async(this, null, function* () {
+    if (Date.now() - searchEndpointCache.ts < 36e5) return searchEndpointCache.url;
+    const domain = yield getCurrentDomain();
+    try {
+      const response = yield providerFetch(`${domain}/search.html`, { headers: HEADERS });
+      const html = yield response.text();
+      // Read the public search-page config; never execute its scripts.
+      const match = html.match(/proxyUrl\s*:\s*["'](https:\/\/[^"']+\/collections\/post\/documents\/search)["']/i);
+      if (match && providerHttpUrl(match[1])) searchEndpointCache.url = match[1];
+      searchEndpointCache.ts = Date.now();
+    } catch (error) {
+      console.log(`[HDHub4u] Search config unavailable: ${error.message}`);
+    }
+    return searchEndpointCache.url;
+  });
+}
 function searchPrimary(query) {
   return __async(this, null, function* () {
     const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-    const searchUrl = `https://search.hdhub4u.glass/collections/post/documents/search?q=${encodeURIComponent(query)}&query_by=post_title,category&query_by_weights=4,2&sort_by=sort_by_date:desc&limit=15&highlight_fields=none&use_cache=true&page=1&analytics_tag=${today}`;
+    const endpoint = yield getSearchEndpoint();
+    const searchUrl = `${endpoint}?q=${encodeURIComponent(query)}&query_by=post_title,category,stars,director,imdb_id&query_by_weights=4,2,2,2,4&sort_by=sort_by_date:desc&limit=15&highlight_fields=none&use_cache=true&page=1&analytics_tag=${today}`;
     const response = yield providerFetch(searchUrl, { headers: HEADERS });
     const data = yield response.json();
     if (!data || !data.hits)
@@ -810,7 +904,7 @@ function searchPrimary(query) {
     return data.hits.map((hit) => {
       const doc = hit.document;
       const title = doc.post_title;
-      const yearMatch = title.match(/\((\d{4})\)|\b(\d{4})\b/);
+      const yearMatch = title.match(/\((19\d{2}|20\d{2})\)|\b(19\d{2}|20\d{2})\b/);
       const year = yearMatch ? parseInt(yearMatch[1] || yearMatch[2]) : null;
       let url = doc.permalink;
       if (url && url.startsWith("/")) {
@@ -831,12 +925,12 @@ function search(query) {
     try {
       const hits = yield searchPrimary(query);
       if (hits.length) return hits;
-    } catch (_) {}
+    } catch (error) { console.log(`[HDHub4u] Primary search failed: ${error.message}`); }
     const domain = yield getCurrentDomain();
     const response = yield providerFetch(`${domain}/?s=${encodeURIComponent(query)}`, { headers: HEADERS });
     const $ = import_cheerio_without_node_native2.default.load(yield response.text());
     const hits = [];
-    $("article h2 a, .recent-movies a, .movie-card").each((_, el) => {
+    $("article h2 a, .recent-movies a, .movie-card a, li.thumb a").each((_, el) => {
       const title = $(el).attr("title") || $(el).text().trim();
       const url = providerHttpUrl($(el).attr("href") || "", domain);
       const year = title.match(/\b(19\d{2}|20\d{2})\b/);
@@ -845,13 +939,13 @@ function search(query) {
     return hits;
   });
 }
-function getDownloadLinks(mediaUrl, mediaType) {
+function getDownloadLinks(mediaUrl, mediaType, targetEpisode) {
   return __async(this, null, function* () {
     const domain = yield getCurrentDomain();
     if (mediaUrl.includes("hdhub4u.")) {
       try {
-        const urlObj = new URL(mediaUrl);
-        const domainObj = new URL(domain);
+        const urlObj = new ProviderURL(mediaUrl);
+        const domainObj = new ProviderURL(domain);
         urlObj.hostname = domainObj.hostname;
         mediaUrl = urlObj.toString();
       } catch (e) {
@@ -861,9 +955,12 @@ function getDownloadLinks(mediaUrl, mediaType) {
     const data = yield response.text();
     const $ = import_cheerio_without_node_native2.default.load(data);
     const releaseTitles = new Map();
-    $("h3 a, h4 a, h5 a").each((_, el) => {
-      const href = $(el).attr("href");
-      if (href) releaseTitles.set(href, $(el).closest("h3, h4, h5").text().trim());
+    $("h3, h4, h5").each((_, heading) => {
+      const title = $(heading).text().trim();
+      $(heading).find("a").each((_, link) => {
+        const href = $(link).attr("href");
+        if (href) releaseTitles.set(href, title);
+      });
     });
     const typeRaw = $("h1.page-title span").text();
     const isMovie = mediaType ? mediaType === "movie" : typeRaw.toLowerCase().includes("movie");
@@ -903,21 +1000,26 @@ function getDownloadLinks(mediaUrl, mediaType) {
           directLinkBlocks.push(...links);
           return;
         }
-        const episodeMatch = text.match(/(?:EPiSODE\s*(\d+)|E(\d+))/i);
+        const episodeMatch = text.match(/(?:EPiSODE\s*[-:]?\s*(\d+)|\bE(\d+)\b)/i);
         if (episodeMatch) {
           const epNum = parseInt(episodeMatch[1] || episodeMatch[2]);
           if (!episodeLinksMap.has(epNum))
             episodeLinksMap.set(epNum, []);
           episodeLinksMap.get(epNum).push(...links);
           let nextElement = $el.next();
-          while (nextElement.length && nextElement.get(0).tagName !== "hr") {
+          while (nextElement.length) {
+            // Native wrappers don't expose tagName. Use the outer HTML to
+            // stop at a separator or the next episode's heading.
+            const outer = $.html(nextElement.get(0)) || "";
+            if (/^\s*<hr\b/i.test(outer)) break;
+            if (/^\s*<h[1-6]\b/i.test(outer) && /\b(?:episode\s*[-:]?\s*\d+|E\d+)\b/i.test(nextElement.text())) break;
             const siblingLinks = nextElement.find("a[href]").map((i2, a) => $(a).attr("href")).get();
             episodeLinksMap.get(epNum).push(...siblingLinks);
             nextElement = nextElement.next();
           }
         }
       });
-      if (directLinkBlocks.length > 0) {
+      if (directLinkBlocks.length > 0 && !episodeLinksMap.has(Number(targetEpisode))) {
         yield Promise.all(directLinkBlocks.map((blockUrl) => __async(this, null, function* () {
           try {
             const resolvedUrl = yield getRedirectLinks(blockUrl);
@@ -929,7 +1031,7 @@ function getDownloadLinks(mediaUrl, mediaType) {
             $$("h5 a, h4 a, h3 a").each((i, el) => {
               const linkText = $$(el).text();
               const linkHref = $$(el).attr("href");
-              const epMatch = linkText.match(/Episode\s*(\d+)/i);
+              const epMatch = linkText.match(/Episode\s*[-:]?\s*(\d+)/i);
               if (epMatch && linkHref) {
                 const epNum = parseInt(epMatch[1]);
                 if (!episodeLinksMap.has(epNum))
@@ -943,6 +1045,7 @@ function getDownloadLinks(mediaUrl, mediaType) {
       }
       const initialLinks = [];
       episodeLinksMap.forEach((links, epNum) => {
+        if (targetEpisode && Number(epNum) !== Number(targetEpisode)) return;
         const uniqueLinks = [...new Set(links)];
         initialLinks.push(...uniqueLinks.map((link) => ({ url: link, episode: epNum })));
       });
@@ -976,13 +1079,15 @@ function getStreams(tmdbId, mediaType = "movie", season = null, episode = null) 
       console.log(`[HDHub4u] TMDB Info: "${mediaInfo.title}" (${mediaInfo.year || "N/A"})`);
       const searchQuery = mediaType === "tv" && season ? `${mediaInfo.title} Season ${season}` : mediaInfo.title;
       const searchResults = yield search(searchQuery);
-      if (searchResults.length === 0)
+      if (searchResults.length === 0) {
+        console.log("[HDHub4u] Search returned no results; the search service may be blocked or unavailable");
         return [];
+      }
       const bestMatch = findBestTitleMatch(mediaInfo, searchResults, mediaType, season);
-      if (!bestMatch) return [];
+      if (!bestMatch) { console.log("[HDHub4u] No search result matched the requested title/season"); return []; }
       const selectedMedia = bestMatch;
       console.log(`[HDHub4u] Selected: "${selectedMedia.title}" (${selectedMedia.url})`);
-      const result = yield getDownloadLinks(selectedMedia.url, mediaType);
+      const result = yield getDownloadLinks(selectedMedia.url, mediaType, episode);
       const finalLinks = result.finalLinks;
       let filteredLinks = finalLinks;
       if (mediaType === "tv" && episode !== null) {

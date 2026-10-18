@@ -1,5 +1,20 @@
 // Shared helpers. The build copies these into each provider so Nuvio
 // can load a single file without importing local modules.
+function providerDelay(ms) {
+  // The native host handles request deadlines when timers aren't available.
+  return typeof setTimeout === 'function' ? new Promise(resolve => setTimeout(resolve, ms)) : Promise.resolve();
+}
+function providerClearTimer(timer) {
+  if (timer !== undefined && typeof clearTimeout === 'function') clearTimeout(timer);
+}
+function providerHeaders(headers) {
+  return { get: function(name) {
+    if (!headers) return null;
+    if (typeof headers.get === 'function') return headers.get(name);
+    const key = Object.keys(headers).find(k => k.toLowerCase() === name.toLowerCase());
+    return key === undefined ? null : headers[key];
+  } };
+}
 var providerActive = 0;
 var providerQueue = [];
 var providerInflight = Object.create(null);
@@ -32,24 +47,24 @@ function providerFetch(url, options) {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const requestOptions = Object.assign({}, opts);
       if (controller && !requestOptions.signal) requestOptions.signal = controller.signal;
-      const timeout = new Promise((_, reject) => {
+      const timeout = typeof setTimeout === 'function' ? new Promise((_, reject) => {
         timer = setTimeout(() => {
           if (controller) controller.abort();
           reject(new Error('Provider request timed out'));
         }, 15000);
-      });
+      }) : null;
       // Read the body within the same timeout, in case the server stalls
       // after sending its headers.
       const request = Promise.resolve().then(() => fetch(url, requestOptions)).then(res =>
-        res.text().then(body => ({
+        Promise.resolve().then(() => res.text()).then(body => ({
           ok: res.ok, status: res.status, statusText: res.statusText,
-          headers: res.headers, url: res.url,
+          headers: providerHeaders(res.headers), url: res.url,
           text: () => Promise.resolve(body),
           json: () => Promise.resolve().then(() => JSON.parse(body))
         }))
       );
-      return Promise.race([request, timeout]).then(res => {
-        clearTimeout(timer);
+      return (timeout ? Promise.race([request, timeout]) : request).then(res => {
+        providerClearTimer(timer);
         // Preserve manual redirects used by host extractors.
         if (res.ok === false && !(opts.redirect === 'manual' && res.status >= 300 && res.status < 400)) {
           const error = new Error('HTTP ' + res.status);
@@ -57,12 +72,12 @@ function providerFetch(url, options) {
           throw error;
         }
         return res;
-      }, err => { clearTimeout(timer); throw err; });
+      }, err => { providerClearTimer(timer); throw err; });
     }).catch(err => {
       const canRetry = (!opts.method || opts.method.toUpperCase() === 'GET') &&
         err.retryable !== false && count < 1;
       if (!canRetry) throw err;
-      return new Promise(r => setTimeout(r, 350)).then(() => attempt(count + 1));
+      return providerDelay(350).then(() => attempt(count + 1));
     });
   }
   return attempt(0);

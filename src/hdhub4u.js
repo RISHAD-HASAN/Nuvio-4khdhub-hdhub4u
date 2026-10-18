@@ -243,6 +243,16 @@ function calculateTitleSimilarity(title1, title2) {
   }
   return score;
 }
+function mediaTitleForMatch(value) {
+  // Search titles often append a full release description. Compare the show
+  // name, not codec/audio/language labels, while checking season separately.
+  return String(value || "").split("|")[0]
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\b(?:season\s*\d+|s\d{1,2})\b/gi, " ")
+    .replace(/\((?:19|20)\d{2}\)/g, " ")
+    .replace(/\b(?:WEB[. -]?DL|WEB[. -]?RIP|BLU[. -]?RAY|\d{3,4}p)\b[\s\S]*$/i, " ")
+    .replace(/\(\s*\)/g, " ").trim();
+}
 function findBestTitleMatch(mediaInfo, searchResults, mediaType, season) {
   if (!searchResults || searchResults.length === 0)
     return null;
@@ -252,7 +262,7 @@ function findBestTitleMatch(mediaInfo, searchResults, mediaType, season) {
     if (mediaType === "movie" && mediaInfo.year && result.year && Math.abs(mediaInfo.year - result.year) > 1) continue;
     const explicitSeason = result.title.match(/\bseason\s*(\d+)\b|\bs(\d+)\b/i);
     if (mediaType === "tv" && season && explicitSeason && Number(explicitSeason[1] || explicitSeason[2]) !== Number(season)) continue;
-    let score = calculateTitleSimilarity(mediaInfo.title, result.title);
+    let score = calculateTitleSimilarity(mediaInfo.title, mediaTitleForMatch(result.title));
     if (mediaInfo.year && result.year) {
       const yearDiff = Math.abs(mediaInfo.year - result.year);
       if (yearDiff === 0)
@@ -673,10 +683,29 @@ function loadExtractor(_0) {
 }
 
 // src/hdhub4u/index.js
+var searchEndpointCache = { url: "https://search.pingora.fyi/collections/post/documents/search", ts: 0 };
+function getSearchEndpoint() {
+  return __async(this, null, function* () {
+    if (Date.now() - searchEndpointCache.ts < 36e5) return searchEndpointCache.url;
+    const domain = yield getCurrentDomain();
+    try {
+      const response = yield fetch(`${domain}/search.html`, { headers: HEADERS });
+      const html = yield response.text();
+      // Read the public search-page config; never execute its scripts.
+      const match = html.match(/proxyUrl\s*:\s*["'](https:\/\/[^"']+\/collections\/post\/documents\/search)["']/i);
+      if (match && providerHttpUrl(match[1])) searchEndpointCache.url = match[1];
+      searchEndpointCache.ts = Date.now();
+    } catch (error) {
+      console.log(`[HDHub4u] Search config unavailable: ${error.message}`);
+    }
+    return searchEndpointCache.url;
+  });
+}
 function searchPrimary(query) {
   return __async(this, null, function* () {
     const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-    const searchUrl = `https://search.hdhub4u.glass/collections/post/documents/search?q=${encodeURIComponent(query)}&query_by=post_title,category&query_by_weights=4,2&sort_by=sort_by_date:desc&limit=15&highlight_fields=none&use_cache=true&page=1&analytics_tag=${today}`;
+    const endpoint = yield getSearchEndpoint();
+    const searchUrl = `${endpoint}?q=${encodeURIComponent(query)}&query_by=post_title,category,stars,director,imdb_id&query_by_weights=4,2,2,2,4&sort_by=sort_by_date:desc&limit=15&highlight_fields=none&use_cache=true&page=1&analytics_tag=${today}`;
     const response = yield fetch(searchUrl, { headers: HEADERS });
     const data = yield response.json();
     if (!data || !data.hits)
@@ -684,7 +713,7 @@ function searchPrimary(query) {
     return data.hits.map((hit) => {
       const doc = hit.document;
       const title = doc.post_title;
-      const yearMatch = title.match(/\((\d{4})\)|\b(\d{4})\b/);
+      const yearMatch = title.match(/\((19\d{2}|20\d{2})\)|\b(19\d{2}|20\d{2})\b/);
       const year = yearMatch ? parseInt(yearMatch[1] || yearMatch[2]) : null;
       let url = doc.permalink;
       if (url && url.startsWith("/")) {
@@ -705,12 +734,12 @@ function search(query) {
     try {
       const hits = yield searchPrimary(query);
       if (hits.length) return hits;
-    } catch (_) {}
+    } catch (error) { console.log(`[HDHub4u] Primary search failed: ${error.message}`); }
     const domain = yield getCurrentDomain();
     const response = yield fetch(`${domain}/?s=${encodeURIComponent(query)}`, { headers: HEADERS });
     const $ = import_cheerio_without_node_native2.default.load(yield response.text());
     const hits = [];
-    $("article h2 a, .recent-movies a, .movie-card").each((_, el) => {
+    $("article h2 a, .recent-movies a, .movie-card a, li.thumb a").each((_, el) => {
       const title = $(el).attr("title") || $(el).text().trim();
       const url = providerHttpUrl($(el).attr("href") || "", domain);
       const year = title.match(/\b(19\d{2}|20\d{2})\b/);
@@ -719,7 +748,7 @@ function search(query) {
     return hits;
   });
 }
-function getDownloadLinks(mediaUrl, mediaType) {
+function getDownloadLinks(mediaUrl, mediaType, targetEpisode) {
   return __async(this, null, function* () {
     const domain = yield getCurrentDomain();
     if (mediaUrl.includes("hdhub4u.")) {
@@ -735,9 +764,12 @@ function getDownloadLinks(mediaUrl, mediaType) {
     const data = yield response.text();
     const $ = import_cheerio_without_node_native2.default.load(data);
     const releaseTitles = new Map();
-    $("h3 a, h4 a, h5 a").each((_, el) => {
-      const href = $(el).attr("href");
-      if (href) releaseTitles.set(href, $(el).closest("h3, h4, h5").text().trim());
+    $("h3, h4, h5").each((_, heading) => {
+      const title = $(heading).text().trim();
+      $(heading).find("a").each((_, link) => {
+        const href = $(link).attr("href");
+        if (href) releaseTitles.set(href, title);
+      });
     });
     const typeRaw = $("h1.page-title span").text();
     const isMovie = mediaType ? mediaType === "movie" : typeRaw.toLowerCase().includes("movie");
@@ -777,21 +809,26 @@ function getDownloadLinks(mediaUrl, mediaType) {
           directLinkBlocks.push(...links);
           return;
         }
-        const episodeMatch = text.match(/(?:EPiSODE\s*(\d+)|E(\d+))/i);
+        const episodeMatch = text.match(/(?:EPiSODE\s*[-:]?\s*(\d+)|\bE(\d+)\b)/i);
         if (episodeMatch) {
           const epNum = parseInt(episodeMatch[1] || episodeMatch[2]);
           if (!episodeLinksMap.has(epNum))
             episodeLinksMap.set(epNum, []);
           episodeLinksMap.get(epNum).push(...links);
           let nextElement = $el.next();
-          while (nextElement.length && nextElement.get(0).tagName !== "hr") {
+          while (nextElement.length) {
+            // Native wrappers don't expose tagName. Use the outer HTML to
+            // stop at a separator or the next episode's heading.
+            const outer = $.html(nextElement.get(0)) || "";
+            if (/^\s*<hr\b/i.test(outer)) break;
+            if (/^\s*<h[1-6]\b/i.test(outer) && /\b(?:episode\s*[-:]?\s*\d+|E\d+)\b/i.test(nextElement.text())) break;
             const siblingLinks = nextElement.find("a[href]").map((i2, a) => $(a).attr("href")).get();
             episodeLinksMap.get(epNum).push(...siblingLinks);
             nextElement = nextElement.next();
           }
         }
       });
-      if (directLinkBlocks.length > 0) {
+      if (directLinkBlocks.length > 0 && !episodeLinksMap.has(Number(targetEpisode))) {
         yield Promise.all(directLinkBlocks.map((blockUrl) => __async(this, null, function* () {
           try {
             const resolvedUrl = yield getRedirectLinks(blockUrl);
@@ -803,7 +840,7 @@ function getDownloadLinks(mediaUrl, mediaType) {
             $$("h5 a, h4 a, h3 a").each((i, el) => {
               const linkText = $$(el).text();
               const linkHref = $$(el).attr("href");
-              const epMatch = linkText.match(/Episode\s*(\d+)/i);
+              const epMatch = linkText.match(/Episode\s*[-:]?\s*(\d+)/i);
               if (epMatch && linkHref) {
                 const epNum = parseInt(epMatch[1]);
                 if (!episodeLinksMap.has(epNum))
@@ -817,6 +854,7 @@ function getDownloadLinks(mediaUrl, mediaType) {
       }
       const initialLinks = [];
       episodeLinksMap.forEach((links, epNum) => {
+        if (targetEpisode && Number(epNum) !== Number(targetEpisode)) return;
         const uniqueLinks = [...new Set(links)];
         initialLinks.push(...uniqueLinks.map((link) => ({ url: link, episode: epNum })));
       });
@@ -850,13 +888,15 @@ function getStreams(tmdbId, mediaType = "movie", season = null, episode = null) 
       console.log(`[HDHub4u] TMDB Info: "${mediaInfo.title}" (${mediaInfo.year || "N/A"})`);
       const searchQuery = mediaType === "tv" && season ? `${mediaInfo.title} Season ${season}` : mediaInfo.title;
       const searchResults = yield search(searchQuery);
-      if (searchResults.length === 0)
+      if (searchResults.length === 0) {
+        console.log("[HDHub4u] Search returned no results; the search service may be blocked or unavailable");
         return [];
+      }
       const bestMatch = findBestTitleMatch(mediaInfo, searchResults, mediaType, season);
-      if (!bestMatch) return [];
+      if (!bestMatch) { console.log("[HDHub4u] No search result matched the requested title/season"); return []; }
       const selectedMedia = bestMatch;
       console.log(`[HDHub4u] Selected: "${selectedMedia.title}" (${selectedMedia.url})`);
-      const result = yield getDownloadLinks(selectedMedia.url, mediaType);
+      const result = yield getDownloadLinks(selectedMedia.url, mediaType, episode);
       const finalLinks = result.finalLinks;
       let filteredLinks = finalLinks;
       if (mediaType === "tv" && episode !== null) {
