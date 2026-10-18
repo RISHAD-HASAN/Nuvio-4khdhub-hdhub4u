@@ -325,14 +325,15 @@ function streamFromLink(link, sourceMeta) {
   // Prefer the resolved filename, retaining per-release page tags as fallback.
   const range = detectDynamicRange(meta.title) || meta.dynamicRange ||
     sourceMeta.dynamicRange || detectDynamicRange(sourceMeta.title);
-  const codec = detectVideoCodec(meta.title) || meta.codec || sourceMeta.codec;
+  const codec = detectVideoCodec(meta.title) || meta.codec || sourceMeta.codec || detectVideoCodec(sourceMeta.title) || detectVideoCodec(sourceMeta.releaseTitle);
+  const release = providerReleaseLabel(meta.title, sourceMeta.title, sourceMeta.releaseTitle);
   return {
-    name: `4KHDHub - ${link.source}${height ? ` ${height}p` : ""}${range ? ` | ${range}` : ""}${codec ? ` | ${codec}` : ""}${sourceMeta.edition ? ` | ${sourceMeta.edition}` : ""}`,
+    name: `4KHDHub - ${link.source}${height ? ` ${height}p` : ""}${release ? ` | ${release}` : ""}${range ? ` | ${range}` : ""}${codec ? ` | ${codec}` : ""}${sourceMeta.edition ? ` | ${sourceMeta.edition}` : ""}`,
     title: [meta.title || sourceMeta.title, sourceMeta.details, (meta.bytes || sourceMeta.bytes) ? formatBytes(meta.bytes || sourceMeta.bytes) : null].filter(Boolean).join("\n"),
     url: link.url,
     // Keep resolution-only quality for compatibility with Nuvio's sorting.
     quality: height ? `${height}p` : void 0,
-    behaviorHints: { bingeGroup: `4khdhub-${range || "untagged"}-${codec || "untagged"}-${height || 0}-${link.source}` }
+    behaviorHints: { bingeGroup: `4khdhub-${release || "untagged"}-${range || "untagged"}-${codec || "untagged"}-${height || 0}-${link.source}` }
   };
 }
 function extractSourceResults($, el, context) {

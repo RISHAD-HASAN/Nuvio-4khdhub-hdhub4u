@@ -137,3 +137,51 @@ function providerGetStreams(id, type, season, episode) {
   // Share ongoing work only. The next request gets fresh playback links.
   return providerInflight[key];
 }
+
+function providerReleaseLabel() {
+  const texts = Array.prototype.slice.call(arguments).map(value => String(value || '').replace(/_/g, ' '));
+  function sourceOf(text) {
+    if (/\bblu[ .-]?ray\b/i.test(text)) return 'BluRay';
+    if (/\bweb[ .-]?dl\b/i.test(text)) return 'WEB-DL';
+    if (/\bweb[ .-]?rip\b/i.test(text)) return 'WEBRip';
+    if (/\bremux\b/i.test(text)) return 'REMUX';
+    return null;
+  }
+  let source = null;
+  for (const text of texts) { source = sourceOf(text); if (source) break; }
+  if (!source) return null;
+  if (source === 'REMUX' && texts.some(text => sourceOf(text) === 'BluRay')) source = 'BluRay';
+  const relevant = texts.filter(text => !sourceOf(text) || sourceOf(text) === source || (source === 'BluRay' && sourceOf(text) === 'REMUX'));
+  if (source === 'BluRay') {
+    return relevant.some(text => /\bremux\b/i.test(text)) ? 'BluRay REMUX' : 'BluRay';
+  }
+  if (source !== 'WEB-DL' && source !== 'WEBRip') return source;
+  // Keep source tags as written. Read the technical part of a release rather
+  // than maintaining a list of OTT services or expanding ambiguous names.
+  function rawTags(text) {
+    const normalized = text.replace(/((?:H[ .-]?26[45]|X26[45]|HEVC|AV1))-[A-Za-z0-9][\s\S]*$/i, '$1').replace(/WEB[ .-]?DL/gi, 'WEB-DL').replace(/WEB[ .-]?RIP/gi, 'WEBRip');
+    const tokens = normalized.split(/[\s.()[\]{}|,:]+/).filter(Boolean);
+    const technical = token => /^(?:\d{3,4}p|4k|web-dl|webrip)$/i.test(token);
+    const ignored = /^(?:WEB-DL|WEBRIP|BLURAY|REMUX|SDR|HDR|HDR10|HDR10\+|DV|DOVI|HLG|HEVC|AVC|AV1|H264|H265|X264|X265|AAC|DDP|DD|DTS|TRUEHD|FLAC|ATMOS|MULTI|DUAL|AUDIO|HQ|HD|UHD|FHD|NFHD|GBPS|MB|TB|HINDI|ENGLISH|TAMIL|TELUGU|BENGALI|JAPANESE|KOREAN|EN|HI|ALL|THE|OF|IT|S[0-9]+|E[0-9]+|S[0-9]+E[0-9]+|EPISODES|COMPLETE|PACK|MOVIE|SERIES)$/i;
+    const skip = (token, i) => ignored.test(token) || /^(?:(?:DDP|DD|AAC|AC3|EAC3|DTS)\d*|\d+BIT)$/i.test(token) || (token === 'GB' && /^\d+$/.test(tokens[i - 1] || ''));
+    let start = tokens.findIndex(technical);
+    if (start < 0) return [];
+    // Tags often precede the resolution: "MA 2160p WEB-DL".
+    let first = start;
+    while (first > 0 && /^[A-Z][A-Z0-9+]{1,11}$/.test(tokens[first - 1]) && !skip(tokens[first - 1], first - 1)) first--;
+    const result = [];
+    for (let i = first; i < tokens.length; i++) {
+      const token = tokens[i];
+      if (/^[A-Z][A-Z0-9+]{1,11}$/.test(token) && !skip(token, i) && result.indexOf(token) === -1) result.push(token);
+      // A dash following the codec usually begins the release group. Don't
+      // mistake names after it for a platform.
+      if (/^(?:H[ -]?26[45]|X26[45]|HEVC|AV1)-/i.test(token)) break;
+    }
+    return result;
+  }
+  for (const text of relevant) {
+    const tags = rawTags(text);
+    if (tags.length) return tags.join(' / ') + ' ' + source;
+  }
+  return source;
+}

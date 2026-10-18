@@ -9,14 +9,16 @@ This is a community fork, not an official Nuvio release.
 You’ll see the resolution, colour-range label and codec when the release provides them:
 
 ```text
-4KHDHub - FSL 2160p | Dolby Vision / HDR | H.265
-4KHDHub - FSL 2160p | SDR | H.265
-4KHDHub - FSL 1080p | H.264
-4KHDHub - FSL 1080p | H.265 | HQ
-4KHDHub - FSL 1080p | AV1
+4KHDHub - FSL 2160p | BluRay REMUX | Dolby Vision / HDR | H.265
+4KHDHub - FSL 2160p | BluRay | Dolby Vision / HDR | H.265
+4KHDHub - FSL 2160p | NF WEB-DL | SDR | H.265
+4KHDHub - FSL 1080p | AMZN WEB-DL | H.265
+4KHDHub - FSL 1080p | WEB-DL | AV1
 ```
 
 **No tag? No extra label.** An untagged release won’t say “Range unknown”, and it won’t be called SDR just because HDR wasn’t mentioned. 4K, HEVC and 10-bit don’t automatically mean HDR either.
+
+BluRay releases only say **REMUX** when explicitly tagged. Web releases keep their source abbreviations as written: `MA`, `CRAVE`, `GB`, `APT`, `AN`, `NF`, `AMZN`, and unfamiliar tags in the same release positions. No full service names are guessed. The parser reads uppercase tags around the resolution and WEB-DL/WEBRip metadata, ignoring common codec, audio and size tokens. Missing tags stay omitted. Filenames take precedence over short release headings when they differ. Because filenames aren't standardized, an arbitrary word outside that technical metadata can't always be identified as a service tag.
 
 Each episode gets its tags from its own release heading or filename—not from the page’s general tags. That matters when the same page offers both SDR and HDR versions.
 
@@ -53,7 +55,7 @@ The providers still use the host extractors from the original project. Keeping a
 
 ## Testing and known limits
 
-**77 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
+**112 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
 
 A live extraction check on October 18, 2026 returned 15 entries from 4KHDHub and 6 from HDHub4u for East of Eden S1 E2. It used a lightweight parser adapter with no browser URL constructor or timers. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links. See [the compatibility fix](docs/FIX-2.0.2.md).
 

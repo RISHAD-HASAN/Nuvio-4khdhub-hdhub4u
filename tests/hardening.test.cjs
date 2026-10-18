@@ -134,7 +134,7 @@ test('4KHDHub movie headings and HQ variants remain visible', () => {
   const meta = c.extractReleaseMeta($, $('.download-item')[0]);
   assert.equal(meta.dynamicRange,'SDR'); assert.equal(meta.height,2160);
   assert.equal(meta.codec,'H.265'); assert.equal(meta.edition,'HQ');
-  assert.match(c.streamFromLink({ source:'FSL', meta },meta).name,/2160p \| SDR \| H\.265 \| HQ$/);
+  assert.match(c.streamFromLink({ source:'FSL', meta },meta).name,/2160p \| WEB-DL \| SDR \| H\.265 \| HQ$/);
 });
 test('HDHub4u no synthetic audio channels', () => {
   const c = load('hdhub4u');

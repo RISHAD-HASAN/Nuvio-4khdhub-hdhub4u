@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.4
+
+- Kept web-source tags raw instead of expanding them into service names.
+- Added open-ended uppercase release-tag parsing for MA, CRAVE, GB, APT, AN and unfamiliar tags in technical metadata.
+- Filtered common language, codec, audio, size and release-group tokens.
+- Added raw-tag regression tests; 112 tests pass.
+
+## 2.0.3
+
+- Added WEB-DL, WEBRip, BluRay and explicit BluRay REMUX labels to stream names.
+- Expanded recognized web-release service tags, including Netflix, Prime Video, Disney+ and Apple TV+.
+- Kept unspecified services and unrecognized abbreviations out of the labels.
+- Used filename metadata first, with the local release heading as fallback.
+- Applied the same source-label rules to both providers.
+- Checked the live Obsession movie-page labels and added regression tests; 100 tests pass.
+
 ## 2.0.2
 
 - Removed reliance on Cheerio `closest()`, which Nuvio’s lightweight parser doesn’t provide.

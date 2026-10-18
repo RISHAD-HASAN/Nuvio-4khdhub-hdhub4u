@@ -923,13 +923,13 @@ function getStreams(tmdbId, mediaType = "movie", season = null, episode = null) 
           qualityStr = link.quality;
         }
         return {
-          name: [`HDHub4u ${serverName}`, dynamicRange, providerCodec(link.fileName) || providerCodec(link.releaseTitle) || providerCodec(link.source)].filter(Boolean).join(" | "),
+          name: [`HDHub4u ${serverName}`, providerReleaseLabel(link.fileName, link.releaseTitle, link.source), dynamicRange, providerCodec(link.fileName) || providerCodec(link.releaseTitle) || providerCodec(link.source)].filter(Boolean).join(" | "),
           title: [mediaTitle, providerDetails(link.fileName || "", link.fileName || "")].filter(Boolean).join("\n"),
           url: link.url,
           quality: qualityStr,
           size: link.size ? formatBytes(link.size) : void 0,
           subtitles: link.subtitles || void 0,
-          behaviorHints: { bingeGroup: `hdhub4u-${dynamicRange || "untagged"}-${providerCodec(link.fileName) || "untagged"}-${qualityStr}-${serverName}` },
+          behaviorHints: { bingeGroup: `hdhub4u-${providerReleaseLabel(link.fileName, link.releaseTitle, link.source) || "untagged"}-${dynamicRange || "untagged"}-${providerCodec(link.fileName) || "untagged"}-${qualityStr}-${serverName}` },
           headers: link.headers || void 0,
           provider: "hdhub4u"
         };
