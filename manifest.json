@@ -1,0 +1,50 @@
+{
+  "name": "Nuvio Dual Providers",
+  "version": "2.0.1",
+  "scrapers": [
+    {
+      "id": "4khdhub",
+      "name": "4KHDHub",
+      "description": "4KHDHub streams with release tags, codecs and separate quality choices",
+      "version": "2.0.1",
+      "author": "Community fork (upstream: Nuvio Team)",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/4khdhub.js",
+      "enabled": true,
+      "formats": [
+        "mkv"
+      ],
+      "logo": "https://www.google.com/s2/favicons?domain=4khdhub.click&sz=128",
+      "contentLanguage": [
+        "en"
+      ],
+      "hasSettings": false
+    },
+    {
+      "id": "hdhub4u",
+      "name": "HDHub4u",
+      "description": "HDHub4u streams with release tags, codecs and separate quality choices",
+      "version": "2.0.1",
+      "author": "Community fork (upstream: Nuvio Team)",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/hdhub4u.js",
+      "enabled": true,
+      "formats": [
+        "mkv",
+        "mp4"
+      ],
+      "logo": "https://www.google.com/s2/favicons?domain=new6.hdhub4u.fo&sz=128",
+      "contentLanguage": [
+        "en",
+        "hin"
+      ],
+      "hasSettings": false
+    }
+  ]
+}
