@@ -47,7 +47,7 @@ You’ll need to host this repository on GitHub first. See [Publishing to GitHub
 Your manifest URL will look like this—replace the example names with your own:
 
 ```text
-https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPOSITORY/main/manifest.json
+https://raw.githubusercontent.com/RISHAD-HASAN/Nuvio-4khdhub-hdhub4u/main/manifest.json
 ```
 
 No extra server, proxy or paid service is added by this package.
