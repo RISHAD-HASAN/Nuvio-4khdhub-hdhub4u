@@ -1,6 +1,6 @@
 {
   "name": "Nuvio Custom Providers",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "scrapers": [
     {
       "id": "4khdhub",
@@ -57,7 +57,7 @@
         "tv"
       ],
       "filename": "providers/cinefreak.js",
-      "enabled": false,
+      "enabled": true,
       "hasSettings": false,
       "formats": [
         "mkv",
@@ -81,7 +81,7 @@
         "tv"
       ],
       "filename": "providers/moviedekhun.js",
-      "enabled": false,
+      "enabled": true,
       "hasSettings": false,
       "formats": [
         "mkv",
@@ -105,7 +105,7 @@
         "tv"
       ],
       "filename": "providers/movielinkbd.js",
-      "enabled": false,
+      "enabled": true,
       "hasSettings": false,
       "formats": [
         "mkv",
