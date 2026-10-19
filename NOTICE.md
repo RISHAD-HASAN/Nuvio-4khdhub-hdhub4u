@@ -25,3 +25,14 @@ The providers use the same host-provided `cheerio-without-node-native` and `cryp
 Domain updates come from [phisher98/TVVVV](https://github.com/phisher98/TVVVV/blob/main/domains.json). The TMDB integration and public API key are inherited, not issued by this project.
 
 Nuvio, TMDB, the source sites, hosting services and repository authors do not endorse this build. Use it only with services and content you’re authorized to access.
+
+
+## Additional adapters in 2.1.0
+
+The CineFreak file in the requested Mobiflix repository was obfuscated. The new adapter is a readable reimplementation of its site-facing flow, not that blob copied into this project. The historical manifest credits CineFreak to `piratezoro9`. A readable Phisher implementation was consulted for the search API and page selectors; its provider file was not transplanted.
+
+MovieDekhun and MovieLinkBD were not found in the inspected Mobiflix default tree or the 60 manifest revisions checked. After permission to look elsewhere, MovieLinkBD's Vega/CloudStream implementations were inspected as format references. MovieDekhun uses a new adapter based on the public site's WordPress search, download buttons and public NeoXcloud button request.
+
+The catalog adapters are original additions here, while the host resolver bundle continues to include the inherited HDHub4u code and its unresolved upstream licensing considerations. The MovieLinkBD data-link decoder implements the site's simple LCG/XOR link format; it is not a DRM or account-access mechanism. No site scripts are evaluated.
+
+References and the limits of the integration are listed in `docs/ADDITIONAL-PROVIDERS.md`. Inclusion is not endorsement or licensing clearance for the referenced projects.

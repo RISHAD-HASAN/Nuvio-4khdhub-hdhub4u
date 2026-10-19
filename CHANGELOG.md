@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0
+
+- Added separate CineFreak, MovieDekhun and MovieLinkBD adapter files and manifest entries.
+- Kept the three new entries off by default because live extraction could not be validated.
+- Reused the existing host-resolution code in self-contained builds without changing the original two providers’ runtime logic.
+- Applied raw source tags, HDR/SDR, codec, REMUX, deduplication and sandbox safeguards to the added adapters.
+- Added source-provenance and live-check limitations; 126 offline tests pass.
+
 ## 2.0.4
 
 - Kept web-source tags raw instead of expanding them into service names.

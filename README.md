@@ -1,6 +1,16 @@
-# Nuvio Dual Providers
+# Nuvio Custom Providers
 
-A small Nuvio plugin repository for **4KHDHub** and **HDHub4u**. It keeps the different releases easy to tell apart without filling the stream list with missing information.
+A Nuvio repository with your existing **4KHDHub** and **HDHub4u** providers, plus experimental **CineFreak**, **MovieDekhun** and **MovieLinkBD** adapters. Release labels stay raw and missing information stays out of the stream list.
+
+| Provider | Default | Status |
+|---|---|---|
+| 4KHDHub | On | Existing runtime logic retained |
+| HDHub4u | On | Existing runtime logic retained |
+| CineFreak | Off | Experimental; live requests blocked in the test environment |
+| MovieDekhun | Off | Catalog reachable; tested host chain returned no playable links |
+| MovieLinkBD | Off | Experimental; live requests blocked in the test environment |
+
+**The three additions are not confirmed-working imports.** MovieDekhun and MovieLinkBD weren't present in the requested repository. Read [the integration notes](docs/ADDITIONAL-PROVIDERS.md) before enabling them.
 
 This is a community fork, not an official Nuvio release.
 
@@ -30,7 +40,7 @@ You’ll need to host this repository on GitHub first. See [Publishing to GitHub
 
 1. Open your repository’s `manifest.json` on GitHub and copy its **Raw** URL.
 2. Add that URL in Nuvio under **Settings → Local Scrapers / Plugins**. The exact wording varies by client.
-3. Enable **4KHDHub** and **HDHub4u** from this repository.
+3. Enable **4KHDHub** and **HDHub4u** from this repository. The three experimental additions are available separately and are off by default.
 4. Disable the same two providers from your old repository so you don’t get duplicate results.
 5. Refresh the providers and reopen the stream list. Restart Nuvio if it still shows the old labels.
 
@@ -55,7 +65,7 @@ The providers still use the host extractors from the original project. Keeping a
 
 ## Testing and known limits
 
-**112 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
+**126 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
 
 A live extraction check on October 18, 2026 returned 15 entries from 4KHDHub and 6 from HDHub4u for East of Eden S1 E2. It used a lightweight parser adapter with no browser URL constructor or timers. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links. See [the compatibility fix](docs/FIX-2.0.2.md).
 
