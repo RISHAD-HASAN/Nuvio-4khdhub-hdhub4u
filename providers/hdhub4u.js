@@ -1,4 +1,4 @@
-// Nuvio Dual Providers 2.1.0. Edit src/ and run npm run build. See NOTICE.md.
+// Nuvio Dual Providers 2.1.2. Edit src/ and run npm run build. See NOTICE.md.
 // Only the HTTP URL features these providers need. Some Nuvio runtimes don't
 // expose URL; others provide a partial version whose hostname isn't writable.
 function ProviderURL(value, base) {

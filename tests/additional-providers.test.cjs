@@ -67,8 +67,17 @@ test('episode selection never uses a season-pack link for another episode',()=>{
  const $=parser.load('<div class="ep-card"><span class="season-number">S01</span><span class="episode-badge">Episode 1-10</span><div class="download-links"><a href="https://cdn.example/pack.zip">Pack</a></div></div>');
  assert.equal(c.catalogLinks($,'https://example.com','tv',1,2).length,0);
 });
-test('unvalidated additions are off by default, keeping the existing pair on',()=>{
- const m=require('../manifest.json');
- assert.ok(m.scrapers.filter(x=>['4khdhub','hdhub4u'].includes(x.id)).every(x=>x.enabled));
- assert.ok(m.scrapers.filter(x=>!['4khdhub','hdhub4u'].includes(x.id)).every(x=>x.enabled===false));
+test('repository permits users to enable all five providers',()=>{
+ const m=require('../manifest.json');assert.ok(m.scrapers.every(x=>x.enabled===true));
+});
+test('CineFreak pins the current net domain despite a stale registry',async()=>{
+ const c=load('cinefreak',()=>{throw Error('Must not fetch stale registry');});
+ c.catalogDomains.data={cinefreak:'https://cinefreak.ch'};c.catalogDomains.time=Date.now();
+ assert.equal(await c.catalogBase(configs[0]),'https://cinefreak.net');
+});
+test('CineFreak source rows use real buttons, not hidden decoy siblings',()=>{
+ const c=load('cinefreak',()=>({body:''}));
+ const $=parser.load('<div class="download-links-div"><div class="cf-src-row"><h4 class="movie-title">Pressure Cooker (2026) HD 720p</h4><div aria-hidden="true"><a class="dlbtn-download" href="https://bad.example/decoy">Download</a></div><div class="dlbtn-container"><a class="dlbtn-download" href="https://good.example/file">Download Links</a></div></div></div>');
+ const links=c.catalogLinks($,'https://cinefreak.net','movie',null,null);
+ assert.equal(links.length,1);assert.equal(links[0].url,'https://good.example/file');assert.match(links[0].title,/720p/);
 });

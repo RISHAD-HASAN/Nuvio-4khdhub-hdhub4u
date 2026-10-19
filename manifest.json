@@ -1,12 +1,12 @@
 {
   "name": "Nuvio Custom Providers",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "scrapers": [
     {
       "id": "4khdhub",
       "name": "4KHDHub",
       "description": "4KHDHub streams with release tags, codecs and separate quality choices",
-      "version": "2.1.0",
+      "version": "2.1.2",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",
@@ -27,7 +27,7 @@
       "id": "hdhub4u",
       "name": "HDHub4u",
       "description": "HDHub4u streams with release tags, codecs and separate quality choices",
-      "version": "2.1.0",
+      "version": "2.1.2",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",
@@ -50,7 +50,7 @@
       "id": "cinefreak",
       "name": "CineFreak",
       "description": "Experimental readable adapter with raw source tags, HDR, codec and REMUX labels; live host availability varies",
-      "version": "2.1.0",
+      "version": "2.1.2",
       "author": "Community adapter; see source credits in NOTICE.md",
       "supportedTypes": [
         "movie",
@@ -74,7 +74,7 @@
       "id": "moviedekhun",
       "name": "MovieDekhun",
       "description": "Experimental readable adapter with raw source tags, HDR, codec and REMUX labels; live host availability varies",
-      "version": "2.1.0",
+      "version": "2.1.2",
       "author": "Community adapter; see source credits in NOTICE.md",
       "supportedTypes": [
         "movie",
@@ -98,7 +98,7 @@
       "id": "movielinkbd",
       "name": "MovieLinkBD",
       "description": "Experimental readable adapter with raw source tags, HDR, codec and REMUX labels; live host availability varies",
-      "version": "2.1.0",
+      "version": "2.1.2",
       "author": "Community adapter; see source credits in NOTICE.md",
       "supportedTypes": [
         "movie",

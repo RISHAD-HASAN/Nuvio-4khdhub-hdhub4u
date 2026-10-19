@@ -1,6 +1,6 @@
 # Three additional providers: experimental integration
 
-This is a **partial integration**, not a claim that all three sources are working live. The files and manifest entries are present, but **CineFreak, MovieDekhun and MovieLinkBD are disabled by default**.
+This is a **partial integration**, not a claim that all three sources are working live. The files and manifest entries are present, but **all five entries are now enabled at repository level so users can test them**.
 
 Your existing 4KHDHub and HDHub4u runtime logic was compared with the 2.0.4 package and is unchanged apart from generated version headers.
 
@@ -41,7 +41,7 @@ The source remains under `src/catalog-adapters.js` and `src/additional-providers
 
 ## Actual validation
 
-- **126 offline tests pass.** They include full mocked movie and TV flows for each new adapter, with no browser URL, timers or `closest()` support.
+- **128 offline tests pass.** They include full mocked movie and TV flows for each new adapter, with no browser URL, timers or `closest()` support.
 - CineFreak's registry domain returned HTTP 403 in the live environment. Its old `.nl` domain did not resolve there.
 - MovieLinkBD's tested `.tv` and `.one` pages returned HTTP 403; the tested `.net` domain did not resolve.
 - MovieDekhun's catalog and download page were reachable. The tested Jailer 2 host chain returned **zero playable links**. Its end-to-end resolution is not validated.
@@ -64,3 +64,7 @@ Refresh the same manifest URL in Nuvio. The three entries will be listed but off
 A failed test needs the provider name, exact title, movie year or season/episode, and a log or screenshot. Don't share private cookies, tokens or signed playback URLs. A working public title/download example helps distinguish a site-layout problem from a blocked host.
 
 The ZIP excludes GitHub Actions workflows to avoid the earlier token-permission error. See `NOTICE.md` before public redistribution.
+
+## 2.1.2 CineFreak follow-up
+
+CineFreak now pins `https://cinefreak.net` instead of accepting the stale `.ch` registry entry. Its live search returned Pressure Cooker (2026). Current source-row download containers are parsed without the hidden decoy sibling. The tested CineCloud downstream URL returned HTTP 403 in this environment; successful end-to-end extraction and playback remain unverified. The user reports MovieLinkBD returning results in Nuvio, but playback was not established.

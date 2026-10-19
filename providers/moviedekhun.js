@@ -1,4 +1,4 @@
-// Nuvio custom adapter 2.1.0. See docs/ADDITIONAL-PROVIDERS.md and NOTICE.md.
+// Nuvio custom adapter 2.1.2. See docs/ADDITIONAL-PROVIDERS.md and NOTICE.md.
 // Only the HTTP URL features these providers need. Some Nuvio runtimes don't
 // expose URL; others provide a partial version whose hostname isn't writable.
 function ProviderURL(value, base) {
@@ -1206,6 +1206,8 @@ function catalogText(url, options) {
   return providerFetch(url,Object.assign({headers:catalogHeaders},options || {})).then(r=>r.text());
 }
 function catalogBase(config) {
+  // Explicitly pinned current site must not be overwritten by a stale registry.
+  if(config.preferBase) return Promise.resolve(config.base.replace(/\/$/,''));
   return catalogAsync(function* () {
     if(Date.now()-catalogDomains.time>3600000) {
       try {
@@ -1312,7 +1314,12 @@ function catalogLinks($,base,type,season,episode) {
       });
     }
   } else {
-    $('.download-links-div h4.movie-title').each((_,heading)=>{
+    // Current CineFreak rows include hidden decoy siblings before the real buttons.
+    $('.download-links-div .cf-src-row').each((_,row)=>{
+      const node=$(row),text=node.find('h4.movie-title').text();
+      node.find('.dlbtn-container a.dlbtn-download, .dlbtn-container a.dlbtn-watch').each((_,a)=>add(a,text+' '+$(a).text()));
+    });
+    if(!$('.download-links-div .cf-src-row').length) $('.download-links-div h4.movie-title').each((_,heading)=>{
       const text=$(heading).text();
       $(heading).next().find('a.dlbtn-download').each((_,a)=>add(a,text+' '+$(a).text()));
     });

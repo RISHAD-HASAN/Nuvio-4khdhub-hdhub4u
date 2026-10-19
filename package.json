@@ -1,6 +1,6 @@
 {
   "name": "nuvio-dual-providers",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "private": true,
   "description": "Five Nuvio sources with raw release tags and sandbox-compatible adapters",
   "scripts": {

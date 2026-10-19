@@ -1,3 +1,9 @@
+# 2.1.2
+
+- Fix CineFreak current domain and source-row download-button selection.
+- Enable all five manifest entries so Nuvio no longer blocks user toggles.
+- Add domain and hidden-decoy regression tests. CineCloud downstream remains unverified.
+
 # Changelog
 
 ## 2.1.0
