@@ -1,12 +1,12 @@
 {
   "name": "Nuvio Custom Providers",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "scrapers": [
     {
       "id": "4khdhub",
       "name": "4KHDHub",
       "description": "4KHDHub streams with release tags, codecs and separate quality choices",
-      "version": "2.2.1",
+      "version": "2.2.2",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",
@@ -27,7 +27,7 @@
       "id": "hdhub4u",
       "name": "HDHub4u",
       "description": "HDHub4u streams with release tags, codecs and separate quality choices",
-      "version": "2.2.1",
+      "version": "2.2.2",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",
@@ -50,7 +50,7 @@
       "id": "joya9tv",
       "name": "Joya9TV",
       "description": "Experimental Nuvio adaptation of StreamX/Vega Joya9TV; live extraction and playback unverified",
-      "version": "2.2.1",
+      "version": "2.2.2",
       "author": "Community adaptation; upstream layouts: StreamX/Vega (see NOTICE.md)",
       "supportedTypes": [
         "movie",

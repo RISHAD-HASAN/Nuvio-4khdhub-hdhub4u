@@ -47,8 +47,8 @@ The site initially returned HTTP 403; later catalog/detail checks succeeded with
 - Existing host resolvers are reused for supported HubCloud-family links and selected other hosts. Keeping those resolvers does not certify every host.
 - Public FilePress two-step download-button API is implemented and fixture-tested only. Captcha/login requirements are not solved.
 - Unknown signed files require video headers or an explicit media filename; arbitrary player HTML is not returned as video.
-- The Joya-specific walker limits depth to five and its own request count to 36, with at most 12 release rows and eight outgoing candidates per page. HTTP retries and the reused host resolvers have their own behavior outside that walker counter. The host app's deadline still applies.
-- First search page only; conservative title matching can miss alternate or translated titles.
+- The Joya-specific walker limits depth to five and each release walker to 12 requests, plus a 64-request aggregate allowance, with at most 12 release rows and eight outgoing candidates per page. HTTP retries and the reused host resolvers have their own behavior outside that walker counter. The host app's deadline still applies.
+- Two release workers, highest-resolution first. First search page only; conservative title matching can miss alternate or translated titles.
 
 ## Logs and local diagnostics
 
@@ -76,3 +76,7 @@ Reviewed repository: https://github.com/AeonCoreX-Lab/streamx-addons
 Reviewed files: `dist/Joya9tv/{posts,meta,episodes,stream}.js`. Exact reviewed commit and file hashes are in `joya9tv-provenance.json`.
 
 This is a readable Nuvio adaptation, not a verbatim import or a drop-in use of StreamX's manifest. The upstream saved session/clearance cookies were deliberately excluded. See NOTICE.md for licensing cautions.
+
+## 2.2.2 follow-up
+
+The user reported 480p only in Nuvio. A fresh live check returned 1080p/720p/480p again. The exact client-side cause remains unconfirmed. Scheduling now starts with highest resolution, uses two release workers, separates per-release budgets and skips HEAD on known HTML intermediates. Tests cover ordering and budget isolation. Neither extraction tests nor this change prove playback or guarantee all resolutions on every network.

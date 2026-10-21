@@ -103,7 +103,8 @@ test('Joya current MultiCloud premium button resolves via media headers and file
 test('Joya prefers the public MultiCloud route before slower mirror fallbacks',async()=>{
  const c=load((url,opts)=>{
   assert.ok(!url.includes('gdxfiles'),'Should not need mirror after successful extraction');
-  if(url==='https://new3.multicloudlinks.com/view/abc' && opts.method==='HEAD')return {body:'',headers:{'content-type':'video/mp4'}};
+  if(url==='https://new3.multicloudlinks.com/view/abc')return {body:'<a class="premium-btn" href="https://cdn.example/signed">Turbo</a>'};
+  if(url==='https://cdn.example/signed')return {body:'',headers:{'content-type':'video/mp4'}};
   if(opts.method==='HEAD')return {body:''};
   return {body:'<a href="https://gdxfiles.com/file/abc">GDx</a><a href="https://new3.multicloudlinks.com/view/abc">MultiCloud</a>'};
  });
@@ -121,4 +122,23 @@ test('Joya release labels do not misinterpret SD as an OTT tag',async()=>{
   return {body:'',headers:{'Content-Type':'video/matroska','Content-Disposition':'attachment; filename="Example WEB-DL H264 AAC 480p.mkv"'}};
  });
  const r=await c.module.exports.getStreams(123,'movie');assert.equal(r[0].name,'Joya9TV 480p | WEB-DL | H.264');assert.doesNotMatch(r[0].title.split('\n').slice(1).join('\n'),/AAC 4/);
+});
+
+test('Joya schedules higher resolutions first and gives each its own request budget',async()=>{
+ const c=load(url=>{
+  if(url.includes('themoviedb'))return {body:{title:'Example',release_date:'2026-01-01'}};
+  if(url.includes('/?s='))return {body:card()};
+  return {body:rows('https://files.example/480','480p')+rows('https://files.example/720','720p')+rows('https://files.example/1080','1080p')};
+ });
+ const order=[],states=[];
+ c.joyaResolve=(url,meta,state)=>{order.push(Number(url.split('/').pop()));states.push(state);return Promise.resolve([{url:'https://cdn.example/movie.'+order.at(-1)+'p.mkv',fileName:meta}]);};
+ const r=await c.module.exports.getStreams(123,'movie');
+ assert.deepEqual(order,[1080,720,480]);assert.equal(r.length,3);assert.notEqual(states[0],states[1]);assert.equal(states[0].limit,12);
+});
+test('Joya release budget exhaustion does not consume another release allowance',()=>{
+ const c=load(),total={requests:0},first={requests:12,limit:12,total},second={requests:0,limit:12,total};
+ assert.throws(()=>c.joyaSpend(first),/budget exhausted/);c.joyaSpend(second);assert.equal(second.requests,1);
+});
+test('Joya aggregate walker request limit remains bounded',()=>{
+ const c=load();assert.throws(()=>c.joyaSpend({requests:0,limit:12,total:{requests:64}}),/Total request budget exhausted/);
 });

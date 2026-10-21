@@ -1,4 +1,4 @@
-# Nuvio Custom Providers — 2.2.1
+# Nuvio Custom Providers — 2.2.2
 
 A cleaned-up Nuvio repository containing only:
 
@@ -9,6 +9,10 @@ A cleaned-up Nuvio repository containing only:
 | Joya9TV | Yes | Pressure Cooker (2026): 1080p, 720p and 480p live extraction; playback untested |
 
 **Removed:** CineFreak, MovieDekhun and MovieLinkBD. Their standalone files, upstream copy, build entries and provider-specific configuration/tests are removed, not merely switched off. Generic helpers needed by Joya9TV remain.
+
+## 2.2.2: higher-quality Joya9TV scheduling
+
+Joya9TV now starts higher-resolution releases first, resolves up to two releases concurrently, and gives each an independent walker allowance. Known catalog/intermediate HTML pages skip redundant HEAD calls. A fresh live check still returned all three Pressure Cooker resolutions; why the user's client returned only 480p has not been established. This addresses possible latency/budget starvation, not a confirmed client-side diagnosis.
 
 ## Updating an existing checkout
 
@@ -85,7 +89,7 @@ The providers still use the host extractors from the original project. Keeping a
 
 On October 21, 2026, Joya9TV live extraction returned three Pressure Cooker (2026) entries. Media HEAD responses identified video and filenames. Playback and Nuvio rendering remain untested; see [the detailed report](docs/JOYA9TV.md).
 
-**141 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
+**144 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
 
 A live extraction check on October 18, 2026 returned 15 entries from 4KHDHub and 6 from HDHub4u for East of Eden S1 E2. It used a lightweight parser adapter with no browser URL constructor or timers. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links. See [the compatibility fix](docs/FIX-2.0.2.md).
 

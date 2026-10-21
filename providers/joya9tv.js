@@ -1,4 +1,4 @@
-// Nuvio Joya9TV adaptation 2.2.1. See docs/JOYA9TV.md and NOTICE.md.
+// Nuvio Joya9TV adaptation 2.2.2. See docs/JOYA9TV.md and NOTICE.md.
 // Only the HTTP URL features these providers need. Some Nuvio runtimes don't
 // expose URL; others provide a partial version whose hostname isn't writable.
 function ProviderURL(value, base) {
@@ -1315,8 +1315,12 @@ function catalogResolve(url,meta,depth,seen) {
 // No browser cookies, clearance tokens or access-control bypasses are imported.
 var joyaBase = 'https://joya9tv1.com';
 function joyaLog(stage, message) { console.log('[Joya9TV]['+stage+'] '+message); }
+function joyaSpend(state) {
+  if (++state.requests > (state.limit || 36)) throw new Error('Request budget exhausted');
+  if(state.total && ++state.total.requests > 64) throw new Error('Total request budget exhausted');
+}
 function joyaPage(url, stage, budget) {
-  if (++budget.requests > 36) return Promise.reject(new Error('Request budget exhausted'));
+  try { joyaSpend(budget); } catch(error) { return Promise.reject(error); }
   return catalogText(url,{headers:Object.assign({},catalogHeaders,{Referer:joyaBase+'/','User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36','Accept-Language':'en-US,en;q=0.9'})})
     .catch(error=>{joyaLog(stage,error.message);throw error;});
 }
@@ -1375,7 +1379,9 @@ function joyaResolve(url, meta, state, depth, seen, type, season, episode, episo
         return result.filter(x=>x && providerHttpUrl(x.url));
       }
       // Unknown signed endpoints are media only if their headers identify a video.
-      if(++state.requests>36) throw new Error('Request budget exhausted');
+      const knownHtml=/(?:^|\.)(?:joya9tv1\.com|joya9links\.com)$/.test(host) || (/multicloudlinks\./i.test(host) && /^\/view\//i.test(new ProviderURL(url).pathname));
+      if(!knownHtml) {
+      joyaSpend(state);
       try {
         const r=yield providerFetch(url,{method:'HEAD',headers:catalogHeaders});
         const contentType=r.headers.get('content-type') || '';
@@ -1385,6 +1391,7 @@ function joyaResolve(url, meta, state, depth, seen, type, season, episode, episo
           return [{url:r.url || url,fileName:file?file[1]:meta,source:'Direct'}];
         if(Number(r.headers.get('content-length'))>4194304)return [];
       } catch(error) { joyaLog('host-head',error.message); }
+      }
     }
     const html=yield joyaPage(url,'host-page',state),$=catalogParser.load(html);
     if(type==='tv' && !episodeSelected) {
@@ -1421,7 +1428,7 @@ function joyaResolve(url, meta, state, depth, seen, type, season, episode, episo
       try {
         const origin=new ProviderURL(url).origin,id=new ProviderURL(url).pathname.split('/').filter(Boolean).pop();
         const post=function(path,id) {
-          if(++state.requests>36)return Promise.reject(new Error('Request budget exhausted'));
+          try { joyaSpend(state); } catch(error) {return Promise.reject(error);}
           return providerFetch(origin+path,{method:'POST',headers:Object.assign({},catalogHeaders,{'Content-Type':'application/json',Referer:origin}),body:JSON.stringify({id,method:'indexDownlaod',captchaValue:null})}).then(r=>r.json());
         };
         const token=yield post('/api/file/downlaod/',id);
@@ -1461,9 +1468,12 @@ function joyaGetStreams(id,type,season,episode) {
       stage='detail';const rows=joyaRows(yield joyaPage(match.url,stage,budget),match.url,type,season);
       joyaLog(stage,rows.length+' release rows');
       const streams=[],seen=new Set();stage='resolve';
-      for(const row of rows.slice(0,12)) {
+      const selected=rows.slice().sort((a,b)=>providerResolution(b.title)-providerResolution(a.title)).slice(0,12);
+      function resolveRow(row) { return catalogAsync(function* () {
+        const releaseBudget={requests:0,limit:12,total:budget};
+        joyaLog('release','Starting '+(providerResolution(row.title) || 'unknown')+'p');
         let links=[];
-        try{links=yield joyaResolve(row.url,row.title,budget,0,new Set(),type,season,episode,false);}
+        try{links=yield joyaResolve(row.url,row.title,releaseBudget,0,new Set(),type,season,episode,false);}
         catch(error){joyaLog(stage,error.message);}
         links.forEach(link=>{
           if(!link.url || seen.has(link.url))return;seen.add(link.url);
@@ -1473,7 +1483,13 @@ function joyaGetStreams(id,type,season,episode) {
           const height=providerResolution(filename) || providerResolution(row.title);
           streams.push({name:['Joya9TV'+(height?' '+height+'p':''),label,range,codec].filter(Boolean).join(' | '),title:[filename,providerDetails(filename.replace(/\b(AAC|DDP|DD|AC3)\s+(?=\d{3,4}p\b)/gi,'$1 | '))].filter(Boolean).join('\n'),url:link.url,quality:height?height+'p':undefined,headers:link.headers,subtitles:link.subtitles,behaviorHints:{bingeGroup:'joya9tv-'+(label || '')+'-'+(range || '')+'-'+(codec || '')}});
         });
-      }
+        joyaLog('release',(providerResolution(row.title) || 'unknown')+'p: '+links.length+' extracted entries');
+      }); }
+      let nextRow=0;
+      const worker=()=>catalogAsync(function* () {
+        while(nextRow<selected.length) {const row=selected[nextRow++];yield resolveRow(row);}
+      });
+      yield Promise.all([worker(),worker()]);
       joyaLog('complete',streams.length+' stream entries; playback not verified');return streams;
     } catch(error){joyaLog(stage,error.message);return [];}
   });

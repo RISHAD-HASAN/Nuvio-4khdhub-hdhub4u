@@ -1,3 +1,10 @@
+# 2.2.2
+
+- Prioritize higher-resolution Joya9TV releases, use two release workers and isolate per-release request budgets.
+- Skip redundant HEAD calls on known HTML intermediate routes.
+- Rechecked Pressure Cooker: 1080p, 720p and 480p extracted; native-client discrepancy remains unconfirmed.
+- 144 offline tests pass. Existing 4KHDHub and HDHub4u runtime bodies unchanged.
+
 # 2.2.1
 
 - Remove CineFreak, MovieDekhun and MovieLinkBD from the manifest, provider files, build configuration and upstream source copy.

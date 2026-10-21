@@ -1,6 +1,6 @@
 {
   "name": "nuvio-dual-providers",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "private": true,
   "description": "4KHDHub, HDHub4u and Joya9TV Nuvio providers with raw release labels",
   "scripts": {
