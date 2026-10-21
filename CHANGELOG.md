@@ -1,3 +1,19 @@
+# 2.2.1
+
+- Remove CineFreak, MovieDekhun and MovieLinkBD from the manifest, provider files, build configuration and upstream source copy.
+- Keep 4KHDHub, HDHub4u and Joya9TV; extract Joya's required generic catalog helpers into a smaller module.
+- Add an explicit retired-file cleanup command for users updating an existing checkout.
+- Inspect CB Providers at commit 38fc741e9a8818bb9dd144cb08404cf5e7106528; document 29 entries/28 files, syntax checks and the maintainer's CineFreak removal. No CB providers imported.
+- 141 tests pass; fewer tests reflect retired provider-specific coverage, not newly failing tests.
+
+# 2.2.0
+
+- Add a standalone Joya9TV Nuvio adaptation using reviewed StreamX/Vega layouts and current public Joya9Links/MultiCloud buttons.
+- Live extraction returned Pressure Cooker (2026) at 1080p, 720p and 480p, with video HEAD responses. No playback or native-app testing claim.
+- Add stage logs, request/depth bounds, exact episode selection, WEBRip fixtures, filename/header handling and a local diagnostic command.
+- Preserve the existing five runtimes apart from version comments; CineFreak remains byte-for-byte upstream.
+- All six manifest entries enabled. 147 offline tests pass.
+
 # 2.1.3
 
 - Replace CineFreak with byte-for-byte upstream code from NuvioPlugin/All-in-One-Nuvio.

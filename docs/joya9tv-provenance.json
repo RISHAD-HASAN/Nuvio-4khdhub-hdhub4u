@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/AeonCoreX-Lab/streamx-addons",
+  "reviewed_commit": "9635622cb16c8797a13923a50b1ef0e8b76e6a61",
+  "notes": "Readable Nuvio adaptation; no upstream clearance/session cookies included. No playback verified.",
+  "reviewed_files": {
+    "dist/Joya9tv/posts.js": "624b9d6a6714a978e3d3d0592317afe724a3cef6fe751c8127d60b430a5cfa65",
+    "dist/Joya9tv/meta.js": "830780acd1c0af2b0a9694a5d9c9a3b10fbe24ad8287482b70a4ccd026842da5",
+    "dist/Joya9tv/episodes.js": "41cf4f83a3413135822d585122098f42460d778ce8e529795bf90b6fa090f3e0",
+    "dist/Joya9tv/stream.js": "0e5333951757250caf8a8b77392626bc054a533306b477c758955dfe68e8c2ad"
+  }
+}

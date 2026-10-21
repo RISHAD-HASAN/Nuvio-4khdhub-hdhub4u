@@ -1,3 +1,5 @@
+> **Historical:** CineFreak, MovieDekhun and MovieLinkBD were removed in 2.2.1. They are no longer shipped.
+
 # 2.1.3 — upstream CineFreak and MovieLinkBD domain correction
 
 CineFreak is now the original obfuscated file from https://github.com/NuvioPlugin/All-in-One-Nuvio/blob/main/providers/cinefreak.js, copied without modification. Git blob: `d2a3074c9d02a62c5907728cdfcf15c8679d0d87`. Build preserves that file byte-for-byte. The custom CineFreak adapter is no longer shipped as its runtime. Its upstream extraction, labels, domains and sandbox compatibility have not been confirmed here; custom raw source/HDR/REMUX behavior is not guaranteed for this unmodified provider.

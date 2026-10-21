@@ -1,3 +1,5 @@
+> **Current package (2.2.1):** only 4KHDHub, HDHub4u and Joya9TV are shipped. References below to the removed CineFreak/MovieDekhun/MovieLinkBD integrations are historical. CB Providers was reviewed, not imported.
+
 # Source and licensing notice
 
 ## Where the providers came from
@@ -10,7 +12,7 @@ This project is based on [NuvioPlugin/All-in-One-Nuvio](https://github.com/Nuvio
 
 The starting files were `providers/4khdhub.js`, `providers/hdhub4u.js` and their manifest entries. Upstream authorship and relevant source comments are retained. This is a modified community build, not an official release by the original authors or Nuvio.
 
-The changes add release labels, metadata handling, request controls, tests and build tooling. Other implementations were reviewed for useful ideas; obfuscated variants weren’t executed or reused, and alternate provider files weren’t copied wholesale into this package. See [the review notes](docs/REVIEW.md).
+The changes add release labels, metadata handling, request controls, tests and build tooling. In the original two-provider review, other implementations were reviewed for useful ideas and alternate provider files were not copied wholesale. Later CineFreak replacement and Joya9TV adaptation are documented below. See [the review notes](docs/REVIEW.md).
 
 ## Before redistributing
 
@@ -40,3 +42,7 @@ References and the limits of the integration are listed in `docs/ADDITIONAL-PROV
 ## CineFreak 2.1.3 upstream replacement
 
 Unmodified obfuscated provider from NuvioPlugin/All-in-One-Nuvio, Git blob `d2a3074c9d02a62c5907728cdfcf15c8679d0d87`. Retained at `src/upstream/cinefreak.js`; build copies it verbatim. This supersedes earlier descriptions of CineFreak as a custom readable reimplementation. No additional licensing rights are implied.
+
+## Joya9TV 2.2.0
+
+Reviewed the StreamX/Vega Joya9TV implementation at https://github.com/AeonCoreX-Lab/streamx-addons, files `dist/Joya9tv/{posts,meta,episodes,stream}.js`. See `docs/joya9tv-provenance.json` for the reviewed commit and SHA-256 hashes. The new source is a readable Nuvio adaptation of those layouts plus current public Joya9Links/MultiCloud handling, not the StreamX manifest or a verbatim bundle. Saved upstream session and clearance cookies were excluded. No new permission or licensing rights are asserted; verify upstream licensing before public redistribution.

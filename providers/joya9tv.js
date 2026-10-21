@@ -1,4 +1,4 @@
-// Nuvio custom adapter 2.1.3. See docs/ADDITIONAL-PROVIDERS.md and NOTICE.md.
+// Nuvio Joya9TV adaptation 2.2.1. See docs/JOYA9TV.md and NOTICE.md.
 // Only the HTTP URL features these providers need. Some Nuvio runtimes don't
 // expose URL; others provide a partial version whose hostname isn't writable.
 function ProviderURL(value, base) {
@@ -1185,11 +1185,10 @@ function getStreams(tmdbId, mediaType = "movie", season = null, episode = null) 
 return { resolve: loadExtractor, decode: atob, range: detectDynamicRange };
 
 })();
-// Readable adapters for the three additional catalog sites. They share the
-// existing host resolvers, but never return a catalog/player HTML page as video.
+// Generic catalog and host helpers used by Joya9TV. Removed provider entry points are not retained.
 var catalogParser = require('cheerio-without-node-native');
-var catalogDomains = { data: {}, time: 0 };
 var catalogHeaders = { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html,application/json;q=0.9,*/*;q=0.8' };
+
 function catalogAsync(generator) {
   return new Promise((resolve,reject) => {
     const iterator = generator();
@@ -1202,27 +1201,17 @@ function catalogAsync(generator) {
     step('next');
   });
 }
+
 function catalogText(url, options) {
   return providerFetch(url,Object.assign({headers:catalogHeaders},options || {})).then(r=>r.text());
 }
-function catalogBase(config) {
-  if(config.preferBase) return Promise.resolve(config.base.replace(/\/$/,''));
-  return catalogAsync(function* () {
-    if(Date.now()-catalogDomains.time>3600000) {
-      try {
-        const r=yield providerFetch('https://raw.githubusercontent.com/phisher98/TVVVV/refs/heads/main/domains.json');
-        catalogDomains.data=yield r.json();catalogDomains.time=Date.now();
-      } catch(_) {}
-    }
-    const registered=catalogDomains.data[config.id] || (config.id==='movielinkbd' && catalogDomains.data.movielinkdb);
-    return (providerHttpUrl(registered) || config.base).replace(/\/$/,'');
-  });
-}
+
 function catalogNormalize(text) {
   return String(text || '').replace(/\[[^\]]*\]/g,' ').replace(/\((?:19|20)\d{2}\)/g,' ')
     .replace(/\b(?:season\s*\d+|s\d{1,2})\b/gi,' ').split(/\b(?:WEB[ .-]?DL|WEBRip|BluRay)\b/i)[0]
     .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
+
 function catalogBest(results, title, year, season) {
   const wanted=catalogNormalize(title);
   let best=null,score=-1;
@@ -1238,26 +1227,7 @@ function catalogBest(results, title, year, season) {
   });
   return best;
 }
-function catalogSearch(config,base,title) {
-  return catalogAsync(function* () {
-    if(config.id==='cinefreak') {
-      const r=yield providerFetch(base+'/search-api.php?q='+encodeURIComponent(title)+'&pg=1');
-      const data=yield r.json();
-      return (data.results || []).map(x=>({title:x.t || x.title || '',url:providerHttpUrl(x.l || x.url,base+'/')})).filter(x=>x.url);
-    }
-    const url=base+(config.id==='movielinkbd'?'/search?q=':'/?s=')+encodeURIComponent(title);
-    const $=catalogParser.load(yield catalogText(url));
-    const found=[],seen=new Set();
-    // MovieDekhun's theme uses anchors rather than standard WP post headings.
-    const selector=config.id==='movielinkbd'?'.movie-card a, .ml-card a': 'a[href]';
-    $(selector).each((_,el)=>{
-      const link=$(el),href=providerHttpUrl(link.attr('href'),base+'/');
-      const text=link.attr('title') || link.find('h2,h3,h4,.title').text() || link.text();
-      if(href && text.trim() && !seen.has(href)) {seen.add(href);found.push({url:href,title:text.trim()});}
-    });
-    return found;
-  });
-}
+
 function catalogAnchor($,el,base) {
   const a=$(el);
   let href=a.attr('href') || '';
@@ -1282,53 +1252,11 @@ function catalogAnchor($,el,base) {
   }
   return providerHttpUrl(href,base);
 }
-function catalogEpisode(text) {
-  const m=String(text || '').match(/\b(?:episode|epi|ep|e)\s*[-.:]?\s*0*(\d+)\b/i);
-  return m?Number(m[1]):null;
-}
-function catalogLinks($,base,type,season,episode) {
-  const found=[],seen=new Set();
-  function add(el,label) {
-    const url=catalogAnchor($,el,base);
-    if(!url || seen.has(url) || /\.(?:zip|rar|7z)(?:$|[?#])/i.test(url)) return;
-    seen.add(url);found.push({url,title:label || $(el).text().trim()});
-  }
-  if(type==='tv') {
-    $('.ep-card').each((_,card)=>{
-      const node=$(card),text=node.find('.episode-badge,.mlbd-episode-title').text();
-      const sn=node.attr('data-season-number') || (node.find('.season-number').text().match(/S(\d+)/i) || [])[1];
-      const en=node.attr('data-episode-number') || catalogEpisode(text);
-      if(Number(sn || 1)!==season || Number(en)!==episode) return;
-      node.find('.download-links a, a.mlbd-episode-download-btn, a[data-dl]').each((_,a)=>add(a,$(a).text()));
-    });
-    if(!found.length) {
-      let current=null,currentSeason=season;
-      $('h2,h3,h4,h5,p').each((_,el)=>{
-        const node=$(el),text=node.text();
-        const sm=text.match(/\bseason\s*(\d+)|\bS(\d{1,2})\b/i);
-        if(sm) currentSeason=Number(sm[1] || sm[2]);
-        const ep=catalogEpisode(text);
-        if(ep!==null) current=ep;
-        if(current===episode && currentSeason===season) node.find('a[href],a[data-dl]').each((_,a)=>add(a,text));
-      });
-    }
-  } else {
-    $('.download-links-div h4.movie-title').each((_,heading)=>{
-      const text=$(heading).text();
-      $(heading).next().find('a.dlbtn-download').each((_,a)=>add(a,text+' '+$(a).text()));
-    });
-    $('.mlbd-download-button-wrap a, .download-links a, a[data-dl]').each((_,a)=>add(a,$(a).text()));
-    // Only explicit download/watch anchors, never a page's general site tags.
-    if(!found.length) $('a[href]').each((_,a)=>{
-      const text=$(a).text().trim(),href=$(a).attr('href') || '';
-      if(/download|watch online/i.test(text) || /\.(mkv|mp4|m3u8)(?:$|[?#])/i.test(href)) add(a,text);
-    });
-  }
-  return found;
-}
+
 function catalogPlayable(url) {
   return !!providerHttpUrl(url) && (/\.(m3u8|mpd|mp4|mkv|avi)(?:$|[?#])/i.test(url) || /\/api\/file\//i.test(url) || /googleusercontent\.com\//i.test(url));
 }
+
 function catalogResolve(url,meta,depth,seen) {
   return catalogAsync(function* () {
     if(!url || depth>4 || seen.has(url)) return [];
@@ -1382,36 +1310,174 @@ function catalogResolve(url,meta,depth,seen) {
     return result;
   });
 }
-function catalogGetStreams(config,id,type,season,episode) {
+
+// Nuvio adaptation of the Joya9TV layouts documented by StreamX/Vega.
+// No browser cookies, clearance tokens or access-control bypasses are imported.
+var joyaBase = 'https://joya9tv1.com';
+function joyaLog(stage, message) { console.log('[Joya9TV]['+stage+'] '+message); }
+function joyaPage(url, stage, budget) {
+  if (++budget.requests > 36) return Promise.reject(new Error('Request budget exhausted'));
+  return catalogText(url,{headers:Object.assign({},catalogHeaders,{Referer:joyaBase+'/','User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36','Accept-Language':'en-US,en;q=0.9'})})
+    .catch(error=>{joyaLog(stage,error.message);throw error;});
+}
+function joyaSearch(html, base) {
+  const $=catalogParser.load(html),out=[],seen=new Set();
+  $('article.item.movies, article.item.tvshows, .result-item article').each((_,el)=>{
+    const card=$(el),a=card.find('div.data h3 a, .title a, h3 a').first();
+    const fallback=card.find('a').first();
+    const url=providerHttpUrl(a.attr('href') || fallback.attr('href'),base+'/');
+    let title=a.text().trim() || fallback.attr('title') || card.find('img').attr('alt') || fallback.text().trim();
+    const year=card.find('.year').text().match(/\b(?:19|20)\d{2}\b/);
+    if(year && !/\b(?:19|20)\d{2}\b/.test(title)) title+=' ('+year[0]+')';
+    if(url && title && !seen.has(url)){seen.add(url);out.push({url,title});}
+  });
+  return out;
+}
+function joyaRows(html, base, type, season) {
+  const $=catalogParser.load(html),out=[];
+  $('#download .links_table table tbody tr').each((_,el)=>{
+    const row=$(el),quality=row.find('strong.quality').text().trim(),a=row.find('td a').first();
+    const url=providerHttpUrl(a.attr('href'),base);
+    // Metadata stays local to this release, not the mixed-quality page title.
+    const label=[quality,row.find('td:nth-child(4)').text().trim(),a.text().trim()].filter(Boolean).join(' ');
+    const sn=label.match(/\bS(?:eason\s*)?0*(\d+)\b/i);
+    if(type==='tv' && sn && Number(sn[1])!==season) return;
+    if(url && quality) out.push({url,title:label});
+  });
+  return out;
+}
+function joyaEpisodeLinks(html, base, season, episode) {
+  const $=catalogParser.load(html),out=[];let current=null,currentSeason=season;
+  $('p.font-bold, h2, h3, h4, a[href]').each((_,el)=>{
+    const node=$(el),href=node.attr('href'),text=node.text().trim();
+    if(!href) {
+      const sm=text.match(/\bseason\s*0*(\d+)\b|\bS0*(\d+)\b/i);
+      if(sm){currentSeason=Number(sm[1]||sm[2]);current=null;}
+      if(/\b(?:episode|ep)\b/i.test(text)) {
+        const m=text.match(/\b(?:episode|ep)\s*0*(\d+)\s*(?:links)?\s*$/i);
+        current=m?Number(m[1]):null; // Packs/ranges and ambiguous headings aren't episodes.
+      }
+    } else if(current===episode && currentSeason===season) {
+      const url=providerHttpUrl(href,base);if(url)out.push({url,title:text});
+    }
+  });
+  return out;
+}
+function joyaResolve(url, meta, state, depth, seen, type, season, episode, episodeSelected) {
   return catalogAsync(function* () {
-    const response=yield providerFetch('https://api.themoviedb.org/3/'+type+'/'+id+'?api_key=439c478a771f35c05022f9feabcca01c');
-    const tmdb=yield response.json(),title=tmdb.title || tmdb.name;
-    if(!title) return [];
-    const date=tmdb.release_date || tmdb.first_air_date || '',year=Number(date.slice(0,4)) || null;
-    const base=yield catalogBase(config),hits=yield catalogSearch(config,base,title);
-    const match=catalogBest(hits,title,year,type==='tv'?season:null);
-    if(!match) {console.log('['+config.name+'] No matching catalog result');return [];}
-    const $=catalogParser.load(yield catalogText(match.url));
-    const candidates=catalogLinks($,match.url,type,season,episode);
-    const groups=yield Promise.all(candidates.slice(0,24).map(item=>
-      catalogResolve(item.url,item.title,0,new Set()).then(links=>links.map(link=>{
-        const filename=link.fileName || item.title;
-        const label=providerReleaseLabel(filename,item.title),range=catalogHosts.range(filename) || catalogHosts.range(item.title);
-        const codec=providerCodec(filename) || providerCodec(item.title);
-        const height=providerResolution(filename) || providerResolution(item.title) || providerRank(link.quality);
-        return {
-          name:[config.name+(height?' '+height+'p':''),label,range,codec].filter(Boolean).join(' | '),
-          title:[filename,providerDetails(filename)].filter(Boolean).join('\n'),
-          url:link.url,quality:height?height+'p':undefined,
-          headers:link.headers,subtitles:link.subtitles,
-          behaviorHints:{bingeGroup:config.id+'-'+(label || '')+'-'+(range || '')+'-'+(codec || '')}
+    if(!url || depth>5 || seen.has(url)) return [];
+    seen.add(url);
+    const host=new ProviderURL(url).hostname;
+    if(type==='movie' || episodeSelected) {
+      if(catalogPlayable(url) || /(?:hubcloud|hubdrive|hubcdn|hblinks|hubstream|vidstack|pixeldrain|streamtape)/i.test(host)) {
+        // Keep resolver recursion/request behavior contained within the existing host implementation.
+        const result=yield catalogResolve(url,meta,0,new Set());
+        return result.filter(x=>x && providerHttpUrl(x.url));
+      }
+      // Unknown signed endpoints are media only if their headers identify a video.
+      if(++state.requests>36) throw new Error('Request budget exhausted');
+      try {
+        const r=yield providerFetch(url,{method:'HEAD',headers:catalogHeaders});
+        const contentType=r.headers.get('content-type') || '';
+        const disposition=r.headers.get('content-disposition') || '';
+        const file=disposition.match(/filename\s*=\s*["']?([^"';]+)["']?/i);
+        if(/^video\//i.test(contentType) || /application\/vnd\.apple\.mpegurl/i.test(contentType) || /filename[^;]*\.(?:mkv|mp4|m3u8)/i.test(disposition))
+          return [{url:r.url || url,fileName:file?file[1]:meta,source:'Direct'}];
+        if(Number(r.headers.get('content-length'))>4194304)return [];
+      } catch(error) { joyaLog('host-head',error.message); }
+    }
+    const html=yield joyaPage(url,'host-page',state),$=catalogParser.load(html);
+    if(type==='tv' && !episodeSelected) {
+      const links=joyaEpisodeLinks(html,url,season,episode);
+      joyaLog('episode','S'+season+'E'+episode+': '+links.length+' candidates');
+      const result=[];
+      for(const item of links.slice(0,8)) {
+        try {result.push(...(yield joyaResolve(item.url,meta+' '+item.title,state,depth+1,seen,type,season,episode,true)));}
+        catch(error){joyaLog('episode-host',error.message);}
+      }
+      return result;
+    }
+    const candidates=[],unique=new Set();
+    function add(value) {
+      const next=providerHttpUrl(value,url);
+      if(next && !unique.has(next)){unique.add(next);candidates.push(next);}
+    }
+    $('video[src], video source[src]').each((_,el)=>add($(el).attr('src')));
+    $('a[href]').each((_,el)=>{
+      const a=$(el),href=providerHttpUrl(a.attr('href'),url);if(!href)return;
+      const host=new ProviderURL(href).hostname,cls=a.attr('class') || '';
+      const path=new ProviderURL(href).pathname;
+      const hostRoute=/(?:hubcloud|hubdrive|hubcdn|gdflix|gdxfiles|filepress|pixeldrain|multicloudlinks)/i.test(host) && (/^\/(?:file|view|dl|d|api)\//i.test(path) || new ProviderURL(href).search);
+      if(catalogPlayable(href) || hostRoute || /(?:^|\s)(?:btn-success|btn-primary|dlbtn-download|fsl-download|download-btn|premium-btn)(?:\s|$)/.test(cls)) add(href);
+    });
+    const redirect=html.match(/var\s+url\s*=\s*['"]([^'"]+)['"]/i);
+    if(redirect) {
+      let target=redirect[1];
+      try {const encoded=target.match(/[?&]r=([^&]+)/);if(encoded) target=catalogHosts.decode(decodeURIComponent(encoded[1]));} catch(_) {}
+      add(target);
+    }
+    // FilePress uses two public download-button API calls. No saved session cookies.
+    if(/filepress/i.test(host)) {
+      try {
+        const origin=new ProviderURL(url).origin,id=new ProviderURL(url).pathname.split('/').filter(Boolean).pop();
+        const post=function(path,id) {
+          if(++state.requests>36)return Promise.reject(new Error('Request budget exhausted'));
+          return providerFetch(origin+path,{method:'POST',headers:Object.assign({},catalogHeaders,{'Content-Type':'application/json',Referer:origin}),body:JSON.stringify({id,method:'indexDownlaod',captchaValue:null})}).then(r=>r.json());
         };
-      })).catch(error=>{console.log('['+config.name+'] '+error.message);return [];})));
-    const streams=groups.reduce((all,part)=>all.concat(part),[]);
-    console.log("["+config.name+"] "+candidates.length+" candidate links, "+streams.length+" playable entries");
-    return streams;
+        const token=yield post('/api/file/downlaod/',id);
+        if(token.status && typeof token.data==='string') {
+          const response=yield post('/api/file/downlaod2/',token.data);
+          const links=Array.isArray(response.data)?response.data:[response.data];
+          links.forEach(link=>{if(typeof link==='string')add(link);});
+        }
+      } catch(error){joyaLog('filepress',error.message);}
+    }
+    const result=[];
+    // Prefer the current public MultiCloud path before slower mirror fallbacks.
+    const priority=link=>/multidownload\.[^/]+\/d\//i.test(link)?3:/multicloudlinks\.[^/]+\/view\//i.test(link)?2:0;
+    candidates.sort((a,b)=>priority(b)-priority(a));
+    for(const next of candidates.slice(0,8)) {
+      try{result.push(...(yield joyaResolve(next,meta,state,depth+1,seen,type,season,episode,true)));}
+      catch(error){joyaLog('host-resolve',error.message);}
+      if(result.length)break; // One confirmed extraction route per release; avoid slow mirror fan-out.
+    }
+    if(!result.length)joyaLog('host-resolve','No supported media found on '+host);
+    return result;
+  });
+}
+function joyaGetStreams(id,type,season,episode) {
+  return catalogAsync(function* () {
+    let stage='metadata';const budget={requests:0};
+    try {
+      const r=yield providerFetch('https://api.themoviedb.org/3/'+type+'/'+id+'?api_key=439c478a771f35c05022f9feabcca01c');
+      const data=yield r.json(),title=data.title || data.name;
+      if(!title)throw new Error('TMDB title missing');
+      const year=Number((data.release_date || data.first_air_date || '').slice(0,4)) || null;
+      stage='search';
+      const hits=joyaSearch(yield joyaPage(joyaBase+'/?s='+encodeURIComponent(title),stage,budget),joyaBase);
+      joyaLog(stage,hits.length+' catalog candidates');
+      const match=catalogBest(hits,title,year,type==='tv'?season:null);
+      if(!match){joyaLog('match','No title/year match');return [];}
+      stage='detail';const rows=joyaRows(yield joyaPage(match.url,stage,budget),match.url,type,season);
+      joyaLog(stage,rows.length+' release rows');
+      const streams=[],seen=new Set();stage='resolve';
+      for(const row of rows.slice(0,12)) {
+        let links=[];
+        try{links=yield joyaResolve(row.url,row.title,budget,0,new Set(),type,season,episode,false);}
+        catch(error){joyaLog(stage,error.message);}
+        links.forEach(link=>{
+          if(!link.url || seen.has(link.url))return;seen.add(link.url);
+          let filename=link.fileName || row.title;
+          try{const name=decodeURIComponent(new ProviderURL(link.url).pathname.split('/').pop());if(providerResolution(name) || providerReleaseLabel(name))filename=name;}catch(_){}
+          const label=providerReleaseLabel(filename,row.title.replace(/\b(?:SD|HD|FHD|UHD)\b/g,'')),range=catalogHosts.range(filename) || catalogHosts.range(row.title),codec=providerCodec(filename) || providerCodec(row.title);
+          const height=providerResolution(filename) || providerResolution(row.title);
+          streams.push({name:['Joya9TV'+(height?' '+height+'p':''),label,range,codec].filter(Boolean).join(' | '),title:[filename,providerDetails(filename.replace(/\b(AAC|DDP|DD|AC3)\s+(?=\d{3,4}p\b)/gi,'$1 | '))].filter(Boolean).join('\n'),url:link.url,quality:height?height+'p':undefined,headers:link.headers,subtitles:link.subtitles,behaviorHints:{bingeGroup:'joya9tv-'+(label || '')+'-'+(range || '')+'-'+(codec || '')}});
+        });
+      }
+      joyaLog('complete',streams.length+' stream entries; playback not verified');return streams;
+    } catch(error){joyaLog(stage,error.message);return [];}
   });
 }
 
-function getStreams(id,type,season,episode) { return catalogGetStreams({"id":"movielinkbd","name":"MovieLinkBD","base":"https://fpthzj.movielinkbd.at","preferBase":true},id,type,season,episode); }
+function getStreams(id,type,season,episode) { return joyaGetStreams(id,type,season,episode); }
 module.exports = { getStreams: providerGetStreams };

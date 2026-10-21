@@ -1,12 +1,12 @@
 {
   "name": "Nuvio Custom Providers",
-  "version": "2.1.3",
+  "version": "2.2.1",
   "scrapers": [
     {
       "id": "4khdhub",
       "name": "4KHDHub",
       "description": "4KHDHub streams with release tags, codecs and separate quality choices",
-      "version": "2.1.3",
+      "version": "2.2.1",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",
@@ -27,7 +27,7 @@
       "id": "hdhub4u",
       "name": "HDHub4u",
       "description": "HDHub4u streams with release tags, codecs and separate quality choices",
-      "version": "2.1.3",
+      "version": "2.2.1",
       "author": "Community fork (upstream: Nuvio Team)",
       "supportedTypes": [
         "movie",
@@ -47,64 +47,16 @@
       "hasSettings": false
     },
     {
-      "id": "cinefreak",
-      "name": "CineFreak",
-      "description": "Original upstream CineFreak provider from NuvioPlugin/All-in-One-Nuvio; unmodified code, live availability varies",
-      "version": "2.1.3",
-      "author": "Upstream community provider; see NOTICE.md",
+      "id": "joya9tv",
+      "name": "Joya9TV",
+      "description": "Experimental Nuvio adaptation of StreamX/Vega Joya9TV; live extraction and playback unverified",
+      "version": "2.2.1",
+      "author": "Community adaptation; upstream layouts: StreamX/Vega (see NOTICE.md)",
       "supportedTypes": [
         "movie",
         "tv"
       ],
-      "filename": "providers/cinefreak.js",
-      "enabled": true,
-      "hasSettings": false,
-      "formats": [
-        "mkv",
-        "mp4",
-        "m3u8"
-      ],
-      "contentLanguage": [
-        "bn",
-        "hi",
-        "en"
-      ]
-    },
-    {
-      "id": "moviedekhun",
-      "name": "MovieDekhun",
-      "description": "Experimental readable adapter with raw source tags, HDR, codec and REMUX labels; live host availability varies",
-      "version": "2.1.3",
-      "author": "Community adapter; see source credits in NOTICE.md",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/moviedekhun.js",
-      "enabled": true,
-      "hasSettings": false,
-      "formats": [
-        "mkv",
-        "mp4",
-        "m3u8"
-      ],
-      "contentLanguage": [
-        "bn",
-        "hi",
-        "en"
-      ]
-    },
-    {
-      "id": "movielinkbd",
-      "name": "MovieLinkBD",
-      "description": "Experimental readable adapter with raw source tags, HDR, codec and REMUX labels; live host availability varies",
-      "version": "2.1.3",
-      "author": "Community adapter; see source credits in NOTICE.md",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/movielinkbd.js",
+      "filename": "providers/joya9tv.js",
       "enabled": true,
       "hasSettings": false,
       "formats": [

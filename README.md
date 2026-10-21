@@ -1,22 +1,36 @@
-# Latest: 2.1.3
+# Nuvio Custom Providers — 2.2.1
 
-CineFreak now uses unmodified upstream code. MovieLinkBD uses the user-provided `.movielinkbd.at` hostname. See [update notes](docs/UPDATE-2.1.3.md) for testing limits and changes; these supersede older CineFreak adapter descriptions below.
+A cleaned-up Nuvio repository containing only:
 
-# Nuvio Custom Providers
-
-A Nuvio repository with your existing **4KHDHub** and **HDHub4u** providers, plus experimental **CineFreak**, **MovieDekhun** and **MovieLinkBD** adapters. Release labels stay raw and missing information stays out of the stream list.
-
-| Provider | Default | Status |
+| Provider | Repo-enabled | Current evidence |
 |---|---|---|
-| 4KHDHub | On | Existing runtime logic retained |
-| HDHub4u | On | Existing runtime logic retained |
-| CineFreak | Off | Experimental; live requests blocked in the test environment |
-| MovieDekhun | Off | Catalog reachable; tested host chain returned no playable links |
-| MovieLinkBD | Off | Experimental; live requests blocked in the test environment |
+| 4KHDHub | Yes | Existing custom runtime retained |
+| HDHub4u | Yes | Existing custom runtime retained |
+| Joya9TV | Yes | Pressure Cooker (2026): 1080p, 720p and 480p live extraction; playback untested |
 
-**The three additions are not confirmed-working imports.** MovieDekhun and MovieLinkBD weren't present in the requested repository. Read [the integration notes](docs/ADDITIONAL-PROVIDERS.md) before enabling them.
+**Removed:** CineFreak, MovieDekhun and MovieLinkBD. Their standalone files, upstream copy, build entries and provider-specific configuration/tests are removed, not merely switched off. Generic helpers needed by Joya9TV remain.
 
-This is a community fork, not an official Nuvio release.
+## Updating an existing checkout
+
+Copy this archive's project contents into your local repository, keeping `.git`, then run:
+
+```sh
+node tools/remove-retired.cjs
+git add .
+git commit -m "Remove unreliable providers and keep the three-provider package"
+git pull --rebase origin main
+git push origin main
+```
+
+Stop and resolve conflicts before pushing if the pull reports any. The cleanup command is important: extracting a ZIP over an old checkout does not delete retired files automatically. It removes only the known retired project paths, not `.git` or user settings. Refresh the repository in Nuvio afterward; if removed cards remain, remove/re-add this repository to clear stale entries.
+
+## CB Providers review
+
+CB's current manifest is version 2.5.0, with **29 entries referencing 28 files**, not the 33 advertised in the release post. All 28 files passed syntax checks; their runtime/playback behavior was not verified. Its maintainer removed CineFreak on October 15, citing Cloudflare Turnstile. No CB provider was merged into this project. Read [the full review and optional install URL](docs/CB-PROVIDERS-REVIEW.md).
+
+Joya9TV's live extraction returned three signed video endpoints in a restricted-parser VM with an HTTP bridge. This is not an in-app or playback guarantee. Read [Joya9TV testing and limits](docs/JOYA9TV.md).
+
+This is a community adaptation, not an official Nuvio release. Earlier release notes are historical and may describe providers no longer shipped.
 
 ## What changes in the stream list?
 
@@ -44,7 +58,7 @@ You’ll need to host this repository on GitHub first. See [Publishing to GitHub
 
 1. Open your repository’s `manifest.json` on GitHub and copy its **Raw** URL.
 2. Add that URL in Nuvio under **Settings → Local Scrapers / Plugins**. The exact wording varies by client.
-3. Enable **4KHDHub** and **HDHub4u** from this repository. The three experimental additions are available separately and can now be enabled in Nuvio.
+3. Enable **4KHDHub** and **HDHub4u** from this repository. Enable **Joya9TV** to test the new source. All three entries permit user toggles at repository level.
 4. Disable the same two providers from your old repository so you don’t get duplicate results.
 5. Refresh the providers and reopen the stream list. Restart Nuvio if it still shows the old labels.
 
@@ -69,7 +83,9 @@ The providers still use the host extractors from the original project. Keeping a
 
 ## Testing and known limits
 
-**126 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
+On October 21, 2026, Joya9TV live extraction returned three Pressure Cooker (2026) entries. Media HEAD responses identified video and filenames. Playback and Nuvio rendering remain untested; see [the detailed report](docs/JOYA9TV.md).
+
+**141 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
 
 A live extraction check on October 18, 2026 returned 15 entries from 4KHDHub and 6 from HDHub4u for East of Eden S1 E2. It used a lightweight parser adapter with no browser URL constructor or timers. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links. See [the compatibility fix](docs/FIX-2.0.2.md).
 

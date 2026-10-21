@@ -1,3 +1,5 @@
+> **Historical:** CineFreak, MovieDekhun and MovieLinkBD were removed in 2.2.1. They are no longer shipped.
+
 > **Superseded for 2.1.3:** CineFreak is now unmodified upstream code, not the readable adapter described below. MovieLinkBD uses the user-provided hostname. See [current update notes](UPDATE-2.1.3.md). Historical test counts and live checks below describe earlier releases.
 
 # Three additional providers: experimental integration
