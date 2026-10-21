@@ -1,3 +1,7 @@
+# Latest: 2.1.3
+
+CineFreak now uses unmodified upstream code. MovieLinkBD uses the user-provided `.movielinkbd.at` hostname. See [update notes](docs/UPDATE-2.1.3.md) for testing limits and changes; these supersede older CineFreak adapter descriptions below.
+
 # Nuvio Custom Providers
 
 A Nuvio repository with your existing **4KHDHub** and **HDHub4u** providers, plus experimental **CineFreak**, **MovieDekhun** and **MovieLinkBD** adapters. Release labels stay raw and missing information stays out of the stream list.
@@ -47,7 +51,7 @@ You’ll need to host this repository on GitHub first. See [Publishing to GitHub
 Your manifest URL will look like this—replace the example names with your own:
 
 ```text
-https://raw.githubusercontent.com/RISHAD-HASAN/Nuvio-4khdhub-hdhub4u/main/manifest.json
+https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPOSITORY/main/manifest.json
 ```
 
 No extra server, proxy or paid service is added by this package.
@@ -65,7 +69,7 @@ The providers still use the host extractors from the original project. Keeping a
 
 ## Testing and known limits
 
-**128 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
+**126 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
 
 A live extraction check on October 18, 2026 returned 15 entries from 4KHDHub and 6 from HDHub4u for East of Eden S1 E2. It used a lightweight parser adapter with no browser URL constructor or timers. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links. See [the compatibility fix](docs/FIX-2.0.2.md).
 

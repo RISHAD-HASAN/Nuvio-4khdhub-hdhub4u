@@ -13,6 +13,7 @@
   {
     "id": "movielinkbd",
     "name": "MovieLinkBD",
-    "base": "https://movielinkbd.tv"
+    "base": "https://fpthzj.movielinkbd.at",
+    "preferBase": true
   }
 ]

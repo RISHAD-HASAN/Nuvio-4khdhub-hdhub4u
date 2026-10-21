@@ -1,3 +1,9 @@
+# 2.1.3
+
+- Replace CineFreak with byte-for-byte upstream code from NuvioPlugin/All-in-One-Nuvio.
+- Restore baseline shared adapter and pin MovieLinkBD to the user-provided hostname.
+- No end-to-end playback confirmation; see docs/UPDATE-2.1.3.md.
+
 # 2.1.2
 
 - Fix CineFreak current domain and source-row download-button selection.

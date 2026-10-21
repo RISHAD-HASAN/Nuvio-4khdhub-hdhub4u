@@ -36,3 +36,7 @@ MovieDekhun and MovieLinkBD were not found in the inspected Mobiflix default tre
 The catalog adapters are original additions here, while the host resolver bundle continues to include the inherited HDHub4u code and its unresolved upstream licensing considerations. The MovieLinkBD data-link decoder implements the site's simple LCG/XOR link format; it is not a DRM or account-access mechanism. No site scripts are evaluated.
 
 References and the limits of the integration are listed in `docs/ADDITIONAL-PROVIDERS.md`. Inclusion is not endorsement or licensing clearance for the referenced projects.
+
+## CineFreak 2.1.3 upstream replacement
+
+Unmodified obfuscated provider from NuvioPlugin/All-in-One-Nuvio, Git blob `d2a3074c9d02a62c5907728cdfcf15c8679d0d87`. Retained at `src/upstream/cinefreak.js`; build copies it verbatim. This supersedes earlier descriptions of CineFreak as a custom readable reimplementation. No additional licensing rights are implied.

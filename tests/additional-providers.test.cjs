@@ -15,7 +15,7 @@ function load(id,route) {
  }};
  vm.createContext(c);vm.runInContext(fs.readFileSync(`providers/${id}.js`,'utf8'),c);c.logs=logs;return c;
 }
-for(const cfg of configs) for(const type of ['movie','tv']) test(`${cfg.name}: ${type} pipeline without URL, timers or closest()`,async()=>{
+for(const cfg of configs.filter(x=>x.id!=='cinefreak')) for(const type of ['movie','tv']) test(`${cfg.name}: ${type} pipeline without URL, timers or closest()`,async()=>{
  const media='https://cdn.example/Example.1080p.MA.WEB-DL.SDR.H265.mkv';
  const c=load(cfg.id,url=>{
   if(url.includes('themoviedb'))return {body:{title:'Example',name:'Example',release_date:'2026-01-01',first_air_date:'2026-01-01'}};
@@ -60,24 +60,24 @@ test('signed media without extension is recognized by HEAD, not downloaded',asyn
  assert.equal(links.length,1);assert.equal(gets,0);
 });
 test('unknown range and source are omitted in additional providers too',()=>{
- const c=load('cinefreak',()=>({body:''}));assert.equal(c.providerReleaseLabel('Example 1080p'),null);assert.equal(c.catalogHosts.range('Example 1080p H265'),null);
+ const c=load('moviedekhun',()=>({body:''}));assert.equal(c.providerReleaseLabel('Example 1080p'),null);assert.equal(c.catalogHosts.range('Example 1080p H265'),null);
 });
 test('episode selection never uses a season-pack link for another episode',()=>{
- const c=load('cinefreak',()=>({body:''}));
+ const c=load('moviedekhun',()=>({body:''}));
  const $=parser.load('<div class="ep-card"><span class="season-number">S01</span><span class="episode-badge">Episode 1-10</span><div class="download-links"><a href="https://cdn.example/pack.zip">Pack</a></div></div>');
  assert.equal(c.catalogLinks($,'https://example.com','tv',1,2).length,0);
 });
 test('repository permits users to enable all five providers',()=>{
  const m=require('../manifest.json');assert.ok(m.scrapers.every(x=>x.enabled===true));
 });
-test('CineFreak pins the current net domain despite a stale registry',async()=>{
- const c=load('cinefreak',()=>{throw Error('Must not fetch stale registry');});
- c.catalogDomains.data={cinefreak:'https://cinefreak.ch'};c.catalogDomains.time=Date.now();
- assert.equal(await c.catalogBase(configs[0]),'https://cinefreak.net');
+test('MovieLinkBD pins user-provided domain despite stale registry',async()=>{
+ const c=load('movielinkbd',()=>{throw Error('Must not fetch stale registry');});
+ c.catalogDomains.data={movielinkbd:'https://movielinkbd.tv'};c.catalogDomains.time=Date.now();
+ assert.equal(await c.catalogBase(configs.find(x=>x.id==='movielinkbd')),'https://fpthzj.movielinkbd.at');
 });
-test('CineFreak source rows use real buttons, not hidden decoy siblings',()=>{
- const c=load('cinefreak',()=>({body:''}));
- const $=parser.load('<div class="download-links-div"><div class="cf-src-row"><h4 class="movie-title">Pressure Cooker (2026) HD 720p</h4><div aria-hidden="true"><a class="dlbtn-download" href="https://bad.example/decoy">Download</a></div><div class="dlbtn-container"><a class="dlbtn-download" href="https://good.example/file">Download Links</a></div></div></div>');
- const links=c.catalogLinks($,'https://cinefreak.net','movie',null,null);
- assert.equal(links.length,1);assert.equal(links[0].url,'https://good.example/file');assert.match(links[0].title,/720p/);
+test('CineFreak is byte-for-byte the pinned upstream source',()=>{
+ const crypto=require('node:crypto');
+ const data=fs.readFileSync('providers/cinefreak.js');
+ assert.deepEqual(data,fs.readFileSync('src/upstream/cinefreak.js'));
+ assert.equal(crypto.createHash('sha256').update(data).digest('hex'),'422d7f2fc6c51ea3d4f77596382cd817b1d482997c46ff7509b6ce11b205404d');
 });

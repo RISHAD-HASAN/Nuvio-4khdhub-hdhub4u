@@ -1,3 +1,5 @@
+> **Superseded for 2.1.3:** CineFreak is now unmodified upstream code, not the readable adapter described below. MovieLinkBD uses the user-provided hostname. See [current update notes](UPDATE-2.1.3.md). Historical test counts and live checks below describe earlier releases.
+
 # Three additional providers: experimental integration
 
 This is a **partial integration**, not a claim that all three sources are working live. The files and manifest entries are present, but **all five entries are now enabled at repository level so users can test them**.

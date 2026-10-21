@@ -20,6 +20,10 @@ const hostSource = fs.readFileSync(path.join(root, 'src/hdhub4u.js'), 'utf8')
   .replace('module.exports = { getStreams };', 'return { resolve: loadExtractor, decode: atob, range: detectDynamicRange };');
 const adapterSource = fs.readFileSync(path.join(root, 'src/catalog-adapters.js'), 'utf8');
 for (const config of extraProviders) {
+  if(config.id === 'cinefreak') {
+    fs.copyFileSync(path.join(root,'src/upstream/cinefreak.js'),path.join(root,'providers/cinefreak.js'));
+    continue;
+  }
   const entry = `\nfunction getStreams(id,type,season,episode) { return catalogGetStreams(${JSON.stringify(config)},id,type,season,episode); }\nmodule.exports = { getStreams: providerGetStreams };\n`;
   fs.writeFileSync(path.join(root, 'providers', config.id + '.js'),
     `// Nuvio custom adapter ${version}. See docs/ADDITIONAL-PROVIDERS.md and NOTICE.md.\n` +
