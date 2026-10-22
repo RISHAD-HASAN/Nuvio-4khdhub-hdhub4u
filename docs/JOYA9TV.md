@@ -1,82 +1,33 @@
-# Joya9TV — 2.2.0
+# Joya9TV
 
-## What this adds
+Joya9TV is a standalone Nuvio provider for movie and TV releases available from `joya9tv1.com` and supported linked hosts.
 
-A standalone Nuvio provider at `providers/joya9tv.js`, with editable source at `src/joya9tv.js`. It adapts the search-card, download-table and episode layouts from the StreamX/Vega Joya9TV implementation and extends them for the current Joya9Links → MultiCloud public-button route.
+## Using the provider
 
-The provider is enabled at repository level so Nuvio permits its toggle. It is still experimental: one movie has been extracted live, not a general playback certification. MLSBD and CineDoze were not added.
+Install this repository using the URL in the [README](../README.md), then enable **Joya9TV** in Nuvio. Open a title or individual episode to request available streams.
 
-## Actual live check — October 21, 2026
-
-Title: **Pressure Cooker (2026)**, TMDB **1610181**.
-
-The built provider ran in a Node VM with the restricted Nuvio parser fixture, without native URL, timers or parent/closest traversal. A Python urllib HTTP bridge supplied actual network responses; no search, detail or host responses were mocked in this live check. This is not an in-app Nuvio test, and its network behavior can differ from Nuvio's native fetch bridge.
-
-Observed flow:
-
-1. Live site search returned two catalog cards; title/year matching selected Pressure Cooker.
-2. Its detail page returned three individual release rows.
-3. Public Joya9Links pages supplied the corresponding MultiCloud links.
-4. MultiCloud public download buttons led to signed media endpoints.
-5. HEAD responses identified video and supplied filenames. The built provider returned:
-
-| Name | Endpoint host |
-|---|---|
-| Joya9TV 1080p \| WEB-DL \| H.264 | dr1.multidownload.lol |
-| Joya9TV 720p \| WEB-DL \| H.264 | dr1.multidownload.lol |
-| Joya9TV 480p \| WEB-DL \| H.264 | dr1.multidownload.lol |
-
-An additional 720p HEAD check returned `video/matroska`, `Accept-Ranges: bytes`, and a video filename. **Video playback, seeking, audio and in-app presentation were not tested.** No full media file was downloaded. Signed URLs are deliberately not published in these notes.
-
-The site initially returned HTTP 403; later catalog/detail checks succeeded with ordinary browser-style request headers. Requests may still be blocked on another network or at another time. No clearance cookies or anti-bot bypasses were imported.
+Higher-resolution releases are processed first, with up to two releases resolved concurrently. Each release has its own request allowance, alongside an overall limit. These controls reduce delays but do not guarantee that every advertised resolution will be returned.
 
 ## Labels
 
-- WEBRip and WEB-DL remain distinct, including `WEBRip`, `WEB-Rip` and `WEB Rip` spellings recognized by the shared parser.
-- Raw uppercase OTT tags remain raw; no guessed platform names.
-- A media response's filename has precedence over the individual release row.
-- Unknown HDR/SDR stays omitted. SD/HD quality prefixes are not treated as OTT identities.
-- No mixed page-wide range or service metadata is added to a release.
+- Release filenames take precedence over short download-row labels.
+- WEBRip and WEB-DL remain distinct.
+- Raw uppercase source tags are preserved rather than expanded into service names.
+- HDR/SDR labels are omitted when not explicitly supplied.
+- SD/HD quality prefixes are not treated as streaming-service identities.
 
-## Supported paths and limits
+## Availability and limitations
 
-- WordPress movie/TV cards and result-item searches.
-- Individual download-table rows.
-- Exact numbered season/episode headings on intermediate pages. Episode packs/ranges are excluded. TV extraction is fixture-tested only, not live-confirmed.
-- Current public Joya9Links/MultiCloud links and download buttons; one successful route per release avoids chasing every slow mirror.
-- Existing host resolvers are reused for supported HubCloud-family links and selected other hosts. Keeping those resolvers does not certify every host.
-- Public FilePress two-step download-button API is implemented and fixture-tested only. Captcha/login requirements are not solved.
-- Unknown signed files require video headers or an explicit media filename; arbitrary player HTML is not returned as video.
-- The Joya-specific walker limits depth to five and each release walker to 12 requests, plus a 64-request aggregate allowance, with at most 12 release rows and eight outgoing candidates per page. HTTP retries and the reused host resolvers have their own behavior outside that walker counter. The host app's deadline still applies.
-- Two release workers, highest-resolution first. First search page only; conservative title matching can miss alternate or translated titles.
+- The provider reads supported search cards, individual download rows and numbered episode layouts.
+- Conservative title matching can miss alternate or translated names.
+- Episode packs and ambiguous episode ranges are not treated as individual episodes.
+- Only supported public download routes are resolved. Login, CAPTCHA and access-control requirements are not bypassed.
+- Hosts may block requests, change their page structure or issue expiring links.
+- A resolution can appear on the website without producing a usable stream in Nuvio.
+- Native-client behavior and playback depend on the Nuvio version, network, player and remote host.
 
-## Logs and local diagnostics
+Reopen the title to request fresh links. If a problem persists, follow the [issue-reporting checklist](../README.md#reporting-an-issue). Do not share full signed media URLs or account cookies.
 
-Logs identify `metadata`, `search`, `match`, `detail`, `episode`, `host-head`, `host-page`, `host-resolve`, `filepress`, or `complete`. The adapter does not print signed URL tokens in its own stage logs. Nuvio may not expose console logs on every client.
+## Attribution
 
-For a local diagnostic with Node 20+:
-
-```sh
-npm ci
-npm run diagnose:joya -- 1610181 movie
-```
-
-For TV:
-
-```sh
-npm run diagnose:joya -- TMDB_ID tv SEASON EPISODE
-```
-
-This uses your local Node fetch/network, which can differ from Nuvio. It tests extraction, not playback. Never share API keys, cookies or full signed URLs in public logs.
-
-## Source provenance
-
-Reviewed repository: https://github.com/AeonCoreX-Lab/streamx-addons
-
-Reviewed files: `dist/Joya9tv/{posts,meta,episodes,stream}.js`. Exact reviewed commit and file hashes are in `joya9tv-provenance.json`.
-
-This is a readable Nuvio adaptation, not a verbatim import or a drop-in use of StreamX's manifest. The upstream saved session/clearance cookies were deliberately excluded. See NOTICE.md for licensing cautions.
-
-## 2.2.2 follow-up
-
-The user reported 480p only in Nuvio. A fresh live check returned 1080p/720p/480p again. The exact client-side cause remains unconfirmed. Scheduling now starts with highest resolution, uses two release workers, separates per-release budgets and skips HEAD on known HTML intermediates. Tests cover ordering and budget isolation. Neither extraction tests nor this change prove playback or guarantee all resolutions on every network.
+The Nuvio implementation adapts Joya9TV layouts reviewed in [StreamX Addons](https://github.com/AeonCoreX-Lab/streamx-addons), with additional handling for supported Joya9Links/MultiCloud public download routes. Upstream session and clearance cookies are not included. See [NOTICE.md](../NOTICE.md) and `joya9tv-provenance.json` for source details.

@@ -1,127 +1,113 @@
-# Nuvio Custom Providers — 2.2.2
+# Nuvio Custom Providers
 
-A cleaned-up Nuvio repository containing only:
+**4KHDHub, HDHub4u and Joya9TV for Nuvio—with clear, release-specific stream labels.**
 
-| Provider | Repo-enabled | Current evidence |
-|---|---|---|
-| 4KHDHub | Yes | Existing custom runtime retained |
-| HDHub4u | Yes | Existing custom runtime retained |
-| Joya9TV | Yes | Pressure Cooker (2026): 1080p, 720p and 480p live extraction; playback untested |
+A community-maintained provider repository for finding movie and TV streams from supported third-party sources. Compare available releases by resolution, source, codec and colour range without adding labels the source never supplied.
 
-**Removed:** CineFreak, MovieDekhun and MovieLinkBD. Their standalone files, upstream copy, build entries and provider-specific configuration/tests are removed, not merely switched off. Generic helpers needed by Joya9TV remain.
+[Install in Nuvio](#installation) · [Supported providers](#supported-providers) · [Stream labels](#understanding-stream-labels) · [Report an issue](https://github.com/RISHAD-HASAN/Nuvio-4khdhub-hdhub4u/issues)
 
-## 2.2.2: higher-quality Joya9TV scheduling
+## Installation
 
-Joya9TV now starts higher-resolution releases first, resolves up to two releases concurrently, and gives each an independent walker allowance. Known catalog/intermediate HTML pages skip redundant HEAD calls. A fresh live check still returned all three Pressure Cooker resolutions; why the user's client returned only 480p has not been established. This addresses possible latency/budget starvation, not a confirmed client-side diagnosis.
+Copy this repository URL:
 
-## Updating an existing checkout
-
-Copy this archive's project contents into your local repository, keeping `.git`, then run:
-
-```sh
-node tools/remove-retired.cjs
-git add .
-git commit -m "Remove unreliable providers and keep the three-provider package"
-git pull --rebase origin main
-git push origin main
+```text
+https://raw.githubusercontent.com/RISHAD-HASAN/Nuvio-4khdhub-hdhub4u/main/manifest.json
 ```
 
-Stop and resolve conflicts before pushing if the pull reports any. The cleanup command is important: extracting a ZIP over an old checkout does not delete retired files automatically. It removes only the known retired project paths, not `.git` or user settings. Refresh the repository in Nuvio afterward; if removed cards remain, remove/re-add this repository to clear stale entries.
+1. Open **Nuvio → Settings → Plugins / Local Scrapers**. Menu names vary by client.
+2. Add the URL above and install or refresh the repository.
+3. Enable the providers you want to use.
+4. Open a movie or episode and select an available stream.
 
-## CB Providers review
+Use a Nuvio build that supports JavaScript provider plugins. These are installed under **Plugins / Local Scrapers**, not the separate Stremio-style Addons section. You do not need to clone this repository or install Node.js to use the providers.
 
-CB's current manifest is version 2.5.0, with **29 entries referencing 28 files**, not the 33 advertised in the release post. All 28 files passed syntax checks; their runtime/playback behavior was not verified. Its maintainer removed CineFreak on October 15, citing Cloudflare Turnstile. No CB provider was merged into this project. Read [the full review and optional install URL](docs/CB-PROVIDERS-REVIEW.md).
+> Already using 4KHDHub or HDHub4u from another repository? Enable only one copy of each to avoid duplicate requests and results.
 
-Joya9TV's live extraction returned three signed video endpoints in a restricted-parser VM with an HTTP bridge. This is not an in-app or playback guarantee. Read [Joya9TV testing and limits](docs/JOYA9TV.md).
+## Supported providers
 
-This is a community adaptation, not an official Nuvio release. Earlier release notes are historical and may describe providers no longer shipped.
+| Provider | Content | Highlights |
+|---|---|---|
+| **4KHDHub** | Movies & TV | Multiple release choices, including 4K where offered by the source |
+| **HDHub4u** | Movies & TV | Release-specific quality, source, codec and colour-range information |
+| **Joya9TV** | Movies & TV | Bengali and other available titles, with higher-resolution releases processed first |
 
-## What changes in the stream list?
+Available titles, languages, resolutions and hosts depend on each source. A provider may return no results for a particular movie or episode, and a listed link may expire or fail to play. This repository does not guarantee every title, host or Nuvio client will work.
 
-You’ll see the resolution, colour-range label and codec when the release provides them:
+## Features
+
+- **Informative stream names:** resolution, WEB-DL/WEBRip/BluRay source, codec and explicit range tags where supplied.
+- **Raw source abbreviations:** tags such as `NF`, `AMZN`, `MA` and `CRAVE` stay abbreviated rather than being expanded into guessed service names.
+- **Release-specific metadata:** filenames and individual release headings take priority over mixed page-wide tags.
+- **Explicit REMUX identification:** a BluRay release is labelled REMUX only when the source says so.
+- **Quality sorting and duplicate handling:** compare available releases without collapsing different signed URLs into one result.
+- **Direct plugin installation:** no additional self-hosted server is required by this package.
+
+## Understanding stream labels
+
+An available release may appear as:
 
 ```text
 4KHDHub - FSL 2160p | BluRay REMUX | Dolby Vision / HDR | H.265
-4KHDHub - FSL 2160p | BluRay | Dolby Vision / HDR | H.265
-4KHDHub - FSL 2160p | NF WEB-DL | SDR | H.265
-4KHDHub - FSL 1080p | AMZN WEB-DL | H.265
-4KHDHub - FSL 1080p | WEB-DL | AV1
+HDHub4u 1080p | AMZN WEB-DL | H.265
+Joya9TV 1080p | WEB-DL | H.264
 ```
 
-**No tag? No extra label.** An untagged release won’t say “Range unknown”, and it won’t be called SDR just because HDR wasn’t mentioned. 4K, HEVC and 10-bit don’t automatically mean HDR either.
+These examples illustrate the label format, not guaranteed results for a particular title. Display details vary by Nuvio client and host.
 
-BluRay releases only say **REMUX** when explicitly tagged. Web releases keep their source abbreviations as written: `MA`, `CRAVE`, `GB`, `APT`, `AN`, `NF`, `AMZN`, and unfamiliar tags in the same release positions. No full service names are guessed. The parser reads uppercase tags around the resolution and WEB-DL/WEBRip metadata, ignoring common codec, audio and size tokens. Missing tags stay omitted. Filenames take precedence over short release headings when they differ. Because filenames aren't standardized, an arbitrary word outside that technical metadata can't always be identified as a service tag.
+| Label | Meaning |
+|---|---|
+| `2160p`, `1080p`, `720p`, `480p` | Resolution advertised by the release or filename |
+| `WEB-DL` / `WEBRip` | Distinct source types; one is not substituted for the other |
+| `BluRay REMUX` | A BluRay release explicitly identified as REMUX |
+| `HDR`, `Dolby Vision`, `SDR` | Colour-range information explicitly supplied by the release |
+| `H.264`, `H.265`, `AV1` | Video codec identified in release metadata |
 
-Each episode gets its tags from its own release heading or filename—not from the page’s general tags. That matters when the same page offers both SDR and HDR versions.
+**Missing metadata stays missing.** Untagged releases are not assumed to be SDR, and 4K, HEVC or 10-bit alone does not establish HDR. Source abbreviations are read heuristically from release metadata; filenames are not standardized, so ambiguous tags may occasionally be misidentified.
 
-HDHub4u uses the same approach. Its resolution stays in Nuvio’s normal quality field. Source, audio, language and size details are included where available; how much you see depends on your Nuvio client.
+## Keeping providers up to date
 
-## Install
+Refresh this repository from Nuvio’s plugin settings to retrieve published updates, then reopen the title’s stream list. Reopening a title also requests fresh links when a host’s signed URLs have expired.
 
-You’ll need to host this repository on GitHub first. See [Publishing to GitHub](docs/PUBLISHING.md) if you haven’t done that yet.
+If provider cards or labels appear outdated, restart Nuvio. If the problem persists, remove and re-add **this repository**; clearing all app data should not be necessary.
 
-1. Open your repository’s `manifest.json` on GitHub and copy its **Raw** URL.
-2. Add that URL in Nuvio under **Settings → Local Scrapers / Plugins**. The exact wording varies by client.
-3. Enable **4KHDHub** and **HDHub4u** from this repository. Enable **Joya9TV** to test the new source. All three entries permit user toggles at repository level.
-4. Disable the same two providers from your old repository so you don’t get duplicate results.
-5. Refresh the providers and reopen the stream list. Restart Nuvio if it still shows the old labels.
+## Troubleshooting
 
-Your manifest URL will look like this—replace the example names with your own:
+**No streams for a title**
+- Confirm the repository and the relevant provider are enabled.
+- Check whether the source website is reachable on your network.
+- Try another title to distinguish a title-specific issue from a provider-wide failure.
 
-```text
-https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPOSITORY/main/manifest.json
-```
+**A resolution is missing**
+- Refresh the title’s stream list. A higher-quality release may exist on the website while its host is unavailable or cannot be resolved by the provider.
+- Allow the search to finish. Results depend on the source, host response times and Nuvio’s request deadline.
 
-No extra server, proxy or paid service is added by this package.
+**A listed stream will not play**
+- Reopen the stream list to obtain a fresh link, or choose another release or host.
+- A successful extraction does not guarantee that the remote file remains available or is compatible with your player.
 
-## What’s included
+For Joya9TV-specific details, see the [provider guide](docs/JOYA9TV.md).
 
-- Separate SDR, HDR, Dolby Vision and codec choices. Releases aren’t reduced to one result per resolution.
-- Duplicate removal that keeps signed URL parameters and different playback headers intact.
-- Quality sorting, request limits, timeouts and limited retries.
-- A fallback site search for HDHub4u when its usual search fails.
-- Fixes for redirect loops, relative links, nested filenames, subtitle forwarding and HTTPS handling.
-- Editable source, ready-to-load provider files, tests and a GitHub Actions workflow.
+## Reporting an issue
 
-The providers still use the host extractors from the original project. Keeping an extractor doesn’t mean every host has been checked live.
+[Open an issue](https://github.com/RISHAD-HASAN/Nuvio-4khdhub-hdhub4u/issues) with:
 
-## Testing and known limits
+- Provider name and the version shown in Nuvio.
+- Movie title and year, or series title, season and episode.
+- Nuvio version, operating system and a screenshot of the problem.
+- Whether the source page is reachable in your browser.
 
-On October 21, 2026, Joya9TV live extraction returned three Pressure Cooker (2026) entries. Media HEAD responses identified video and filenames. Playback and Nuvio rendering remain untested; see [the detailed report](docs/JOYA9TV.md).
+**Do not post passwords, API keys, account cookies or full signed playback URLs.** For sensitive issues, review the [security notes](SECURITY.md) before sharing details.
 
-**144 automated tests passed** for this build. They cover release tags, movies and episodes, missing labels, sorting, duplicates, request handling and a mocked extraction flow.
+## Contributing
 
-A live extraction check on October 18, 2026 returned 15 entries from 4KHDHub and 6 from HDHub4u for East of Eden S1 E2. It used a lightweight parser adapter with no browser URL constructor or timers. **Playback and rendering inside Nuvio haven’t been tested.** Sites can change, block requests or return expired links. See [the compatibility fix](docs/FIX-2.0.2.md).
+Provider source lives in `src/`; Nuvio loads the generated standalone files in `providers/`. See the [development guide](docs/DEVELOPMENT.md) before submitting changes, and check the [changelog](CHANGELOG.md) for recent updates.
 
-The labels describe what the source says; they aren’t the result of inspecting the video itself. When timers are available, the timeout applies to each request, not the whole search. Without timers, requests rely on the app’s native deadline. Without `AbortController`, a timed-out fetch may continue in the background.
+## Credits and licensing
 
-The legacy development parser has known dependency advisories. See [Security notes](SECURITY.md). Before making a public derivative, also read the [source and licensing notice](NOTICE.md): the original repository didn’t declare a license when checked.
+Based on provider work from [NuvioPlugin / All-in-One-Nuvio](https://github.com/NuvioPlugin/All-in-One-Nuvio). Joya9TV adapts layouts reviewed in [StreamX Addons](https://github.com/AeonCoreX-Lab/streamx-addons), with domain references from [Phisher’s registry](https://github.com/phisher98/TVVVV).
 
-## Working on the providers
+This is an independent community project, not an official Nuvio release. Read [NOTICE.md](NOTICE.md) for source attribution and licensing limitations before redistributing.
 
-Use Node.js 22 or later:
+## Disclaimer
 
-```sh
-npm ci --omit=optional --ignore-scripts
-npm run build
-npm run check
-npm test
-```
-
-Edit `src/`, then run the build. Nuvio loads the generated files in `providers/`, so commit those alongside your source changes. No local helper imports are needed at runtime; the build puts the shared code into each provider.
-
-The app needs the same `cheerio-without-node-native` and `crypto-js` modules used by the original providers. The npm dependencies here are for local development and aren’t bundled into the plugin.
-
-For an optional page-only check:
-
-```sh
-npm run smoke
-```
-
-This checks public pages and metadata, not video playback. Its output goes into `.reports/`, which is ignored by Git.
-
-## Credits and review
-
-Based on [NuvioPlugin/All-in-One-Nuvio](https://github.com/NuvioPlugin/All-in-One-Nuvio), with the upstream provider credits retained. Domain updates use [phisher98’s registry](https://github.com/phisher98/TVVVV/blob/main/domains.json).
-
-The fork review covered 82 public forks returned by GitHub and nine related repositories. It wasn’t a review of every branch or every similar project online. [Review notes](docs/REVIEW.md) explain what was kept, what was left out and why.
+This repository contains provider code, not hosted media. Providers request information and links from third-party services; availability and access conditions can change without notice. Use the software only to access content you are authorized to view and comply with applicable laws and service terms.
